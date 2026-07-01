@@ -1,0 +1,14 @@
+{
+  "name": "quadra-futsal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gerenciador de futsal — sorteio de times, cronômetro, artilharia e histórico com banco SQLite (Turso/libSQL).",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env server.js"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  }
+}
