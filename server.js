@@ -48,7 +48,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Arquivos estáticos (o "/" abre o app).
-    let file = url.pathname === "/" ? "quadra-futsal.html" : url.pathname.slice(1);
+    let file = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
     if (file.includes("..")) {
       res.writeHead(403);
       return res.end("Proibido");

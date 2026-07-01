@@ -9,3 +9,6 @@ quadra.db
 quadra.db-journal
 quadra.db-shm
 quadra.db-wal
+
+.vercel
+.env*
