@@ -1016,7 +1016,12 @@ function load(){
    Estratégia offline-first: toda mudança grava NA HORA no localStorage
    (nunca perde dado, mesmo sem internet) e é enviada ao banco em segundo plano. */
 const API_URL = "/api/state";
-let pushTimer=null, pushInFlight=false, pushAgain=false;
+let pushTimer=null, pushInFlight=false, pushAgain=false, saveSeq=0, pushedSeq=0;
+// "sujo" = há mudança local ainda não confirmada no banco. Persistido no
+// localStorage para sobreviver a recarregamentos (não depende do relógio).
+function isDirty(){ try{ return localStorage.getItem("quadra_dirty")==="1"; }catch(e){ return saveSeq>pushedSeq; } }
+function markDirty(){ try{ localStorage.setItem("quadra_dirty","1"); }catch(e){} }
+function clearDirty(){ try{ localStorage.removeItem("quadra_dirty"); }catch(e){} }
 
 function setSyncState(s){
   const el=document.getElementById("sync-dot"); if(!el) return;
@@ -1026,6 +1031,7 @@ function saveLocal(){ try{ localStorage.setItem("quadra_futsal_v1", JSON.stringi
 
 function save(){
   DB.updatedAt = new Date().toISOString();
+  saveSeq++; markDirty();
   saveLocal();
   setSyncState("saving");
   clearTimeout(pushTimer);
@@ -1036,6 +1042,7 @@ async function pushToServer(){
   if(!canEdit) return;   // convidado nunca grava
   if(pushInFlight){ pushAgain=true; return; }
   pushInFlight=true;
+  const seq=saveSeq;
   let ok=false;
   try{
     const res = await fetch(API_URL, {
@@ -1045,13 +1052,15 @@ async function pushToServer(){
     });
     if(res.status===403){ setSyncState("off"); toast("Sem permissão para salvar. Entre como editor novamente."); pushInFlight=false; return; }
     if(!res.ok) throw new Error("HTTP "+res.status);
-    ok=true; setSyncState("ok");
+    ok=true; pushedSeq=Math.max(pushedSeq,seq);
+    if(saveSeq===seq) clearDirty();   // nada novo desde que começou → limpa "sujo"
+    setSyncState("ok");
   }catch(e){
     setSyncState("off");   // offline/blip: fica salvo localmente e reenvia depois
   }
   pushInFlight=false;
   if(!ok){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToServer, 4000); return; }   // reenvia sozinho
-  if(pushAgain){ pushAgain=false; clearTimeout(pushTimer); pushTimer=setTimeout(pushToServer,600); }
+  if(pushAgain || isDirty()){ pushAgain=false; clearTimeout(pushTimer); pushTimer=setTimeout(pushToServer,600); }
 }
 
 let pullRetry=null;
@@ -1061,16 +1070,10 @@ async function pullFromServer(){
     if(!res.ok) throw new Error("HTTP "+res.status);
     const {data} = await res.json();
     if(data && data.players){
-      const localTime = DB.updatedAt || "";
-      const serverTime = data.updatedAt || "";
-      // datas em ISO 8601 são comparáveis como texto (ordem cronológica)
-      if(!DB.players.length || serverTime >= localTime){
-        DB = data; saveLocal(); applyLoadedData();   // banco tem a versão mais recente → adota
-      }else{
-        pushToServer();                               // local é mais novo → envia pro banco
-      }
-    }else if(DB.players.length){
-      pushToServer();                                 // banco vazio (1ª vez) → sobe o que já existe local
+      if(isDirty() && canEdit){ pushToServer(); }   // mudança local pendente → envia (não perde)
+      else { DB = data; saveLocal(); applyLoadedData(); }   // sem pendência → adota o banco (sempre fresco)
+    }else if(canEdit && (isDirty() || DB.players.length)){
+      pushToServer();                               // banco vazio (1ª vez) → sobe o que já existe local
     }
     setSyncState("ok");
   }catch(e){
@@ -1160,7 +1163,7 @@ function updateAuthUI(){
 // volta para a tela de escolha (senha ou convidado)
 function logoutToLogin(){
   adminPw="";
-  try{ localStorage.removeItem("quadra_session"); localStorage.removeItem("quadra_pw"); }catch(e){}
+  try{ localStorage.removeItem("quadra_session"); localStorage.removeItem("quadra_pw"); localStorage.removeItem("quadra_dirty"); }catch(e){}
   applyMode("guest"); updateAuthUI();
   document.getElementById("sheet-settings").classList.remove("show");
   document.getElementById("scrim").classList.remove("show");
@@ -1669,6 +1672,8 @@ document.getElementById("btn-endmatch").addEventListener("click", ()=>{
   askConfirm("Encerrar e salvar?", "A partida vai para o Histórico e o placar zera para a próxima. O total de gols na temporada é mantido.", ()=>{
     saveMatchToHistory();
     awardGkPoints();
+    // rotação: quem ficou de reserva neste jogo conta +1 (justiça no próximo sorteio)
+    if(DB.lineup) DB.lineup.teams.forEach(t=>(t.reserves||[]).forEach(pid=>{ const p=byId(pid); if(p) p.benchCount=(p.benchCount||0)+1; }));
     DB.period=1;
     DB.players.forEach(p=>p.matchGoals=0);
     save(); resetClock();
@@ -1795,7 +1800,7 @@ function checkSeasonRollover(){
       .map(p=>({id:p.id,nome:p.nome,gkPoints:p.gkPoints||0,gkGames:p.gkGames||0,posicoes:(p.posicoes||["Ala"]).slice()}))
       .sort((a,b)=>(b.gkPoints||0)-(a.gkPoints||0)||a.nome.localeCompare(b.nome));
     DB.seasons[DB.season]={index:DB.season, standings, gkStandings, endedAt:new Date().toISOString()};
-    DB.players.forEach(p=>{ p.gols=0; p.gkPoints=0; p.gkGames=0; });
+    DB.players.forEach(p=>{ p.gols=0; p.gkPoints=0; p.gkGames=0; p.benchCount=0; });
     DB.season=cur;
     save();
   }
@@ -1995,8 +2000,11 @@ function drawTeams(){
     pool.filter(p=>p.posicoes.includes(a)).length - pool.filter(p=>p.posicoes.includes(b)).length);
   positions.forEach(pos=>{
     const slotsTotal = FORMATION[pos]*numTeams;
-    const cands = shuffle(pool.filter(p=>!assigned.has(p.id) && p.posicoes.includes(pos)))
-                    .sort((a,b)=>b.nivel-a.nivel);
+    // QUEM entra é decidido por rotação (quem sentou mais) + sorteio (variedade);
+    // o nível só equilibra os times na hora de distribuir (menor soma).
+    const cands = pool.filter(p=>!assigned.has(p.id) && p.posicoes.includes(pos))
+                    .map(p=>({p, key:(p.benchCount||0)+Math.random()}))
+                    .sort((a,b)=>b.key-a.key).map(x=>x.p);
     for(let i=0;i<slotsTotal && cands.length;i++){
       const avail = raw.filter(t=>t.need[pos]>0); if(!avail.length) break;
       const minSum = Math.min(...avail.map(t=>t.sum));
@@ -2411,6 +2419,7 @@ function applyLoadedData(){
     if(p.ativo===undefined) p.ativo=true;
     if(p.gkPoints===undefined) p.gkPoints=0;
     if(p.gkGames===undefined) p.gkGames=0;
+    if(p.benchCount===undefined) p.benchCount=0;
   });
   if(!DB.history) DB.history=[];
   checkSeasonRollover();   // vira a temporada (arquiva + zera) se o período mudou
@@ -2435,6 +2444,17 @@ loadPhotosCache();      // fotos do cache local (IndexedDB) — aparecem na hora
 pullFromServer();       // busca a versão salva no banco e reconcilia em segundo plano
 pullPhotos();           // atualiza as fotos do servidor e regrava o cache
 fetchPoll();            // status da enquete de habilidades
+
+/* ---- atualização automática dos dados na tela ---- */
+function anyOverlayOpen(){
+  return !!document.querySelector(".scrim.show, .vote-screen.show, .login-screen.show, .poll-modal.show, #cardview.show, .confirm.show");
+}
+// a cada 1 min: puxa o estado e o status da enquete (não interrompe edição/telas abertas)
+setInterval(()=>{ if(document.visibilityState!=="hidden" && !anyOverlayOpen()){ pullFromServer(); fetchPoll(); } }, 60000);
+// a cada 5 min: atualiza as fotos (são pesadas, não precisa toda hora)
+setInterval(()=>{ if(document.visibilityState!=="hidden" && !anyOverlayOpen()) pullPhotos(); }, 300000);
+// ao voltar para o app (reabrir a aba), atualiza na hora
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && !anyOverlayOpen()){ pullFromServer(); fetchPoll(); } });
 </script>
 </body>
 </html>
