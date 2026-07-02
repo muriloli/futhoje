@@ -848,6 +848,18 @@ const POS = {
   Ala:{c:"--ala", ab:"ALA"},
   "Pivô":{c:"--pivo", ab:"PIV"}
 };
+const VALID_POS = ["Goleiro","Fixo","Ala","Pivô"];
+// converte qualquer valor de posição para um válido (à prova de dado corrompido/encoding)
+function normalizePos(x){
+  if(VALID_POS.includes(x)) return x;
+  if(typeof x==="string"){
+    if(x.indexOf("Piv")===0 || x.indexOf("Pív")===0) return "Pivô";
+    if(x.indexOf("Gol")===0) return "Goleiro";
+    if(x.indexOf("Fix")===0) return "Fixo";
+    if(x.indexOf("Ala")===0) return "Ala";
+  }
+  return "Ala";
+}
 const POS_ICON = {
   Goleiro:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 11h14M5 11l1-5h12l1 5M5 11v7h14v-7M9 11v7M15 11v7"/></svg>',
   Fixo:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg>',
@@ -948,20 +960,22 @@ async function pushToServer(){
   if(!canEdit) return;   // convidado nunca grava
   if(pushInFlight){ pushAgain=true; return; }
   pushInFlight=true;
+  let ok=false;
   try{
     const res = await fetch(API_URL, {
       method:"POST",
       headers:{"Content-Type":"application/json","x-admin-password":adminPw},
       body: JSON.stringify(DB)
     });
+    if(res.status===403){ setSyncState("off"); toast("Sem permissão para salvar. Entre como editor novamente."); pushInFlight=false; return; }
     if(!res.ok) throw new Error("HTTP "+res.status);
-    setSyncState("ok");
+    ok=true; setSyncState("ok");
   }catch(e){
-    setSyncState("off");   // offline/sem servidor: fica salvo localmente e reenvia depois
-  }finally{
-    pushInFlight=false;
-    if(pushAgain){ pushAgain=false; clearTimeout(pushTimer); pushTimer=setTimeout(pushToServer,600); }
+    setSyncState("off");   // offline/blip: fica salvo localmente e reenvia depois
   }
+  pushInFlight=false;
+  if(!ok){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToServer, 4000); return; }   // reenvia sozinho
+  if(pushAgain){ pushAgain=false; clearTimeout(pushTimer); pushTimer=setTimeout(pushToServer,600); }
 }
 
 async function pullFromServer(){
@@ -1145,10 +1159,10 @@ function renderPlayers(){
   }
   list.innerHTML = players.map(p=>{
     const primary = p.posicoes[0];
-    const col = cssvar(POS[primary].c);
+    const col = cssvar((POS[primary]||POS.Ala).c);
     const inact = p.ativo===false;
     const badges = p.posicoes.map(pos=>{
-      const c=cssvar(POS[pos].c);
+      const c=cssvar((POS[pos]||POS.Ala).c);
       return `<span class="posmini" style="background:${c}22;color:${c}">${POS[pos].ab}</span>`;
     }).join("");
     return `<div class="player ${inact?'inactive':''}" data-id="${p.id}">
@@ -1754,7 +1768,7 @@ function renderLeaders(){
   const rest=ranked.slice(3,10);
   listEl.innerHTML = rest.length
     ? rest.map((p,i)=>{
-        const col=cssvar(POS[(p.posicoes&&p.posicoes[0])||"Ala"].c);
+        const col=cssvar((POS[(p.posicoes&&p.posicoes[0])]||POS.Ala).c);
         return `<div class="lead-row">
           <span class="lead-rank">${i+4}</span>
           <span class="lead-av" style="background:${col}22;color:${col}">${avatarInner(p, initials(p.nome))}</span>
@@ -2082,6 +2096,8 @@ function applyLoadedData(){
   DB.players.forEach(p=>{
     if(!p.posicoes) p.posicoes = p.posicao ? [p.posicao] : ["Ala"];
     if(p.posicao!==undefined) delete p.posicao;
+    p.posicoes = [...new Set(p.posicoes.map(normalizePos))];   // corrige posições inválidas
+    if(!p.posicoes.length) p.posicoes=["Ala"];
     if(p.matchGoals===undefined) p.matchGoals=0;
     if(p.ativo===undefined) p.ativo=true;
     if(p.gkPoints===undefined) p.gkPoints=0;
