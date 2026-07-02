@@ -374,63 +374,66 @@
   .overall-line b{font-family:'JetBrains Mono';color:var(--accent);font-size:15px}
   .radar-wrap{margin:0 auto 8px;color:var(--muted)}
 
-  /* ---------- Cartão do jogador (estilo FUT, formato escudo) ---------- */
-  #cardview{position:fixed;inset:0;z-index:56;display:none;place-items:center;background:#000d;padding:24px;perspective:1100px}
+  /* ---------- Cartão do jogador (estilo FUT, escudo em 3D com camadas) ---------- */
+  #cardview{position:fixed;inset:0;z-index:56;display:none;place-items:center;background:#000d;padding:24px;perspective:560px}
   #cardview.show{display:grid}
-  .fcard-wrap{filter:drop-shadow(0 18px 50px #000c);animation:cardin .32s cubic-bezier(.2,1.4,.4,1)}
+  /* a sombra (filter) fica no wrap, senão achataria o 3D do cartão */
+  .fcard-wrap{filter:drop-shadow(0 22px 44px #000b);animation:cardin .32s cubic-bezier(.2,1.4,.4,1)}
+  .fcard-wrap.tier-esp{filter:drop-shadow(0 22px 44px #000b) drop-shadow(0 0 22px #f2d57e99)}
   @keyframes cardin{from{transform:scale(.72) rotate(-3deg);opacity:0}to{transform:none;opacity:1}}
-  /* efeito tilt 3D estilo TCG Pocket: ancorado no centro, segue o dedo */
-  .fcard{transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.8,.3,1);
+  /* elemento que gira: preserve-3d, SEM clip/filter (senão achata as camadas) */
+  .fcard{position:relative;width:290px;transform-style:preserve-3d;
+    transition:transform .5s cubic-bezier(.2,.8,.3,1);
     touch-action:none;cursor:grab;--gx:50%;--gy:50%;--hx:50%;--hy:50%}
   .fcard:active{cursor:grabbing}
-  /* glare (reflexo de luz seguindo o dedo) */
-  .fc-glare{position:absolute;inset:0;pointer-events:none;z-index:2;opacity:0;transition:opacity .3s;
-    mix-blend-mode:soft-light;
-    background:radial-gradient(circle at var(--gx) var(--gy),rgba(255,255,255,.85),rgba(255,255,255,.15) 35%,transparent 60%)}
-  /* holo (brilho arco-íris) */
-  .fc-holo{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0;transition:opacity .3s;
-    mix-blend-mode:color-dodge;background-size:220% 220%;background-position:var(--hx) var(--hy);
+  .fcard.active,.fcard.active .fc-in>*{transition:transform .06s linear}
+  /* silhueta de escudo só nas camadas de superfície (folhas, não achatam o pai) */
+  .fc-face,.fc-holo,.fc-glare{position:absolute;inset:0;pointer-events:none;
+    clip-path:polygon(50% 0%,57% 2.4%,91% 2.4%,100% 8%,100% 78%,96% 84%,56% 96.6%,50% 100%,44% 96.6%,4% 84%,0% 78%,0% 8%,9% 2.4%,43% 2.4%)}
+  .fc-face{box-shadow:inset 0 0 0 4px rgba(255,255,255,.4)}
+  .fc-face::before{content:"";position:absolute;inset:0;opacity:.07;
+    background:repeating-linear-gradient(115deg,transparent 0 13px,currentColor 13px 14px)}
+  .fc-glare{z-index:2;opacity:0;transition:opacity .3s;mix-blend-mode:soft-light;
+    background:radial-gradient(circle at var(--gx) var(--gy),rgba(255,255,255,.9),rgba(255,255,255,.15) 35%,transparent 62%)}
+  .fc-holo{z-index:1;opacity:0;transition:opacity .3s;mix-blend-mode:color-dodge;
+    background-size:220% 220%;background-position:var(--hx) var(--hy);
     background-image:repeating-linear-gradient(115deg,
       rgba(255,0,132,.5) 0%,rgba(255,183,0,.5) 12%,rgba(0,255,144,.5) 24%,
       rgba(0,179,255,.5) 36%,rgba(166,0,255,.5) 48%,rgba(255,0,132,.5) 60%)}
-  .fcard.active .fc-glare{opacity:.7}
-  .fcard.active .fc-holo{opacity:.4}
-  /* silhueta de escudo FUT: entalhe no topo, ombros angulados, base em ponta */
-  .fcard,.fc-in{clip-path:polygon(50% 0%,57% 2.4%,91% 2.4%,100% 8%,100% 78%,96% 84%,56% 96.6%,50% 100%,44% 96.6%,4% 84%,0% 78%,0% 8%,9% 2.4%,43% 2.4%)}
-  .fcard{width:292px;padding:5px}          /* a moldura aparece nesta borda de 5px */
-  .fc-in{padding:28px 20px 44px;text-align:center;position:relative}
-  .fc-in::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.07;
-    background:repeating-linear-gradient(115deg,transparent 0 13px,currentColor 13px 14px)}
-  .fc-corner{position:absolute;top:30px;left:26px;text-align:center;line-height:1;z-index:1}
+  .fcard.active .fc-glare{opacity:.8}
+  .fcard.active .fc-holo{opacity:.5}
+  /* conteúdo: cada camada num nível Z diferente = profundidade real (parallax) */
+  .fc-in{position:relative;transform-style:preserve-3d;padding:28px 20px 44px;text-align:center}
+  .fc-corner{position:absolute;top:30px;left:26px;text-align:center;line-height:1;z-index:1;transform:translateZ(46px)}
   .fc-rating{font-family:'JetBrains Mono';font-weight:800;font-size:44px}
   .fc-pos{font-size:14px;font-weight:900;letter-spacing:1.5px;margin-top:3px}
   .fc-sep2{width:34px;height:1.5px;background:currentColor;opacity:.5;margin:8px auto}
   .fc-secpos{font-size:9.5px;font-weight:900;letter-spacing:.6px;opacity:.8;display:flex;flex-direction:column;gap:3px}
   .fc-tiername{position:absolute;top:34px;right:24px;font-size:9px;font-weight:900;letter-spacing:1.4px;
-    opacity:.7;text-transform:uppercase;writing-mode:vertical-rl}
+    opacity:.7;text-transform:uppercase;writing-mode:vertical-rl;transform:translateZ(22px)}
   .fc-av{width:112px;height:112px;border-radius:50%;margin:14px auto 8px;display:grid;place-items:center;
     font-size:40px;font-weight:900;background:rgba(255,255,255,.26);border:3px solid currentColor;
-    box-shadow:inset 0 2px 12px rgba(255,255,255,.4), 0 6px 16px rgba(0,0,0,.22)}
+    box-shadow:inset 0 2px 12px rgba(255,255,255,.4), 0 6px 16px rgba(0,0,0,.22);transform:translateZ(72px)}
   .fc-name{font-size:22px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;position:relative}
-  .fc-line{height:2px;background:currentColor;opacity:.5;margin:10px 30px 12px;border-radius:2px}
-  .fc-attrs{display:flex;justify-content:center;padding:0 8px;position:relative}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;position:relative;transform:translateZ(52px)}
+  .fc-line{height:2px;background:currentColor;opacity:.5;margin:10px 30px 12px;border-radius:2px;transform:translateZ(16px)}
+  .fc-attrs{display:flex;justify-content:center;padding:0 8px;position:relative;transform:translateZ(36px)}
   .fc-col{flex:1;display:flex;flex-direction:column;gap:9px}
   .fc-vdiv{width:1.5px;background:currentColor;opacity:.5;margin:2px 6px;border-radius:2px}
   .fc-attr{font-size:16px;font-weight:900;letter-spacing:.5px;display:flex;gap:9px;justify-content:center;align-items:baseline}
   .fc-attr b{font-family:'JetBrains Mono';font-size:19px}
-  .fc-foot{margin-top:14px;font-size:12.5px;font-weight:800;position:relative}
-  .fc-bline{width:46px;height:2px;background:currentColor;opacity:.5;margin:12px auto 0}
-  .fc-hint{margin-top:16px;text-align:center;color:#ffffff99;font-size:12px;font-weight:700}
-  /* raridades: moldura (.fcard) + corpo (.fc-in) */
-  .tier-bronze{background:linear-gradient(160deg,#E8A96B,#5F3714)}
-  .tier-bronze .fc-in{background:linear-gradient(165deg,#B97B42,#8C5528 55%,#5F3714);color:#FFE3C4}
-  .tier-prata{background:linear-gradient(160deg,#FFFFFF,#8E9AA6)}
-  .tier-prata .fc-in{background:linear-gradient(165deg,#E9EEF3,#C2CBD4 55%,#9AA6B2);color:#39434D}
-  .tier-ouro{background:linear-gradient(160deg,#FFF3C4,#A67C18)}
-  .tier-ouro .fc-in{background:linear-gradient(165deg,#F6E296,#E2BE56 50%,#BE9128);color:#4A3608}
-  .tier-esp{background:linear-gradient(160deg,#F0D585,#C9A13B)}
-  .tier-esp .fc-in{background:linear-gradient(170deg,#FFFFFF,#F6F1E5 55%,#EADFC4);color:#8A6A14}
+  .fc-foot{margin-top:14px;font-size:12.5px;font-weight:800;position:relative;transform:translateZ(28px)}
+  .fc-bline{width:46px;height:2px;background:currentColor;opacity:.5;margin:12px auto 0;transform:translateZ(16px)}
+  .fc-hint{margin-top:18px;text-align:center;color:#ffffff99;font-size:12px;font-weight:700}
+  /* raridades: cor do texto no .fcard, gradiente do corpo na .fc-face */
+  .tier-bronze{color:#FFE3C4}
+  .tier-bronze .fc-face{background:linear-gradient(165deg,#B97B42,#8C5528 55%,#5F3714)}
+  .tier-prata{color:#39434D}
+  .tier-prata .fc-face{background:linear-gradient(165deg,#E9EEF3,#C2CBD4 55%,#9AA6B2)}
+  .tier-ouro{color:#4A3608}
+  .tier-ouro .fc-face{background:linear-gradient(165deg,#F6E296,#E2BE56 50%,#BE9128)}
+  .tier-esp{color:#8A6A14}
+  .tier-esp .fc-face{background:linear-gradient(170deg,#FFFFFF,#F6F1E5 55%,#EADFC4)}
   .tier-esp .fc-av{background:linear-gradient(180deg,#fff,#F0E9D8)}
 
   /* ---------- Botão de configurações ---------- */
@@ -1058,9 +1061,10 @@ function openCard(id){
   const artil=(p.gols||0)>0 && p.gols===maxG;
   const sec=p.posicoes.slice(1).map(x=>`<span>${POS[x].ab}</span>`).join("");
   document.getElementById("cardview").innerHTML=`
-    <div class="fcard-wrap">
-      <div class="fcard ${tier.cls}"><div class="fc-in">
-        <div class="fc-holo"></div><div class="fc-glare"></div>
+    <div class="fcard-wrap ${tier.cls}">
+      <div class="fcard ${tier.cls}">
+        <div class="fc-face"></div><div class="fc-holo"></div><div class="fc-glare"></div>
+        <div class="fc-in">
         <div class="fc-corner">
           <div class="fc-rating">${f99(ov)}</div>
           <div class="fc-pos">${POS[prim].ab}</div>
@@ -1083,19 +1087,19 @@ function openCard(id){
 /* tilt 3D estilo TCG Pocket — inclina seguindo o dedo, ancorado no centro */
 function attachTilt(card){
   if(!card) return;
-  const MAX=16;
+  const MAX=30;   // amplitude da inclinação
   const move=e=>{
     const r=card.getBoundingClientRect();
     const px=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
     const py=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
     card.style.transition="transform 0s";
-    card.style.transform=`rotateX(${(0.5-py)*MAX}deg) rotateY(${(px-0.5)*MAX}deg)`;
+    card.style.transform=`rotateX(${(0.5-py)*MAX}deg) rotateY(${(px-0.5)*MAX}deg) scale(1.05)`;
     card.style.setProperty("--gx",(px*100)+"%"); card.style.setProperty("--gy",(py*100)+"%");
     card.style.setProperty("--hx",(px*100)+"%"); card.style.setProperty("--hy",(py*100)+"%");
     card.classList.add("active");
   };
   const end=()=>{
-    card.style.transition="transform .5s cubic-bezier(.2,.8,.3,1)";
+    card.style.transition="transform .6s cubic-bezier(.2,.8,.3,1)";
     card.style.transform=""; card.classList.remove("active");
     card.style.setProperty("--gx","50%"); card.style.setProperty("--gy","50%");
   };
