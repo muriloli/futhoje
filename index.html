@@ -1205,14 +1205,24 @@ function fileToAvatar(file, cb){
   const img=new Image();
   const url=URL.createObjectURL(file);
   img.onload=()=>{
-    const S=320;                                  // 320x320, cover crop
+    const S=340;                                  // S×S, cover crop
     const c=document.createElement("canvas"); c.width=S; c.height=S;
     const ctx=c.getContext("2d");
     const scale=Math.max(S/img.width, S/img.height);
     const w=img.width*scale, h=img.height*scale;
+    ctx.clearRect(0,0,S,S);                        // mantém transparente
     ctx.drawImage(img,(S-w)/2,(S-h)/2,w,h);
     URL.revokeObjectURL(url);
-    try{ cb(c.toDataURL("image/jpeg",0.82)); }catch(e){ toast("Não consegui processar a imagem"); }
+    // detecta se a imagem tem transparência (algum pixel com alfa < 250)
+    let hasAlpha=false;
+    try{
+      const d=ctx.getImageData(0,0,S,S).data;
+      for(let i=3;i<d.length;i+=4){ if(d[i]<250){ hasAlpha=true; break; } }
+    }catch(e){}
+    try{
+      // com transparência → PNG (preserva o "sem fundo"); senão → JPEG (menor)
+      cb(hasAlpha ? c.toDataURL("image/png") : c.toDataURL("image/jpeg",0.82));
+    }catch(e){ toast("Não consegui processar a imagem"); }
   };
   img.onerror=()=>{ URL.revokeObjectURL(url); toast("Não consegui ler a imagem"); };
   img.src=url;
