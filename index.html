@@ -375,10 +375,26 @@
   .radar-wrap{margin:0 auto 8px;color:var(--muted)}
 
   /* ---------- Cartão do jogador (estilo FUT, formato escudo) ---------- */
-  #cardview{position:fixed;inset:0;z-index:56;display:none;place-items:center;background:#000d;padding:24px}
+  #cardview{position:fixed;inset:0;z-index:56;display:none;place-items:center;background:#000d;padding:24px;perspective:1100px}
   #cardview.show{display:grid}
   .fcard-wrap{filter:drop-shadow(0 18px 50px #000c);animation:cardin .32s cubic-bezier(.2,1.4,.4,1)}
   @keyframes cardin{from{transform:scale(.72) rotate(-3deg);opacity:0}to{transform:none;opacity:1}}
+  /* efeito tilt 3D estilo TCG Pocket: ancorado no centro, segue o dedo */
+  .fcard{transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.8,.3,1);
+    touch-action:none;cursor:grab;--gx:50%;--gy:50%;--hx:50%;--hy:50%}
+  .fcard:active{cursor:grabbing}
+  /* glare (reflexo de luz seguindo o dedo) */
+  .fc-glare{position:absolute;inset:0;pointer-events:none;z-index:2;opacity:0;transition:opacity .3s;
+    mix-blend-mode:soft-light;
+    background:radial-gradient(circle at var(--gx) var(--gy),rgba(255,255,255,.85),rgba(255,255,255,.15) 35%,transparent 60%)}
+  /* holo (brilho arco-íris) */
+  .fc-holo{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0;transition:opacity .3s;
+    mix-blend-mode:color-dodge;background-size:220% 220%;background-position:var(--hx) var(--hy);
+    background-image:repeating-linear-gradient(115deg,
+      rgba(255,0,132,.5) 0%,rgba(255,183,0,.5) 12%,rgba(0,255,144,.5) 24%,
+      rgba(0,179,255,.5) 36%,rgba(166,0,255,.5) 48%,rgba(255,0,132,.5) 60%)}
+  .fcard.active .fc-glare{opacity:.7}
+  .fcard.active .fc-holo{opacity:.4}
   /* silhueta de escudo FUT: entalhe no topo, ombros angulados, base em ponta */
   .fcard,.fc-in{clip-path:polygon(50% 0%,57% 2.4%,91% 2.4%,100% 8%,100% 78%,96% 84%,56% 96.6%,50% 100%,44% 96.6%,4% 84%,0% 78%,0% 8%,9% 2.4%,43% 2.4%)}
   .fcard{width:292px;padding:5px}          /* a moldura aparece nesta borda de 5px */
@@ -1044,6 +1060,7 @@ function openCard(id){
   document.getElementById("cardview").innerHTML=`
     <div class="fcard-wrap">
       <div class="fcard ${tier.cls}"><div class="fc-in">
+        <div class="fc-holo"></div><div class="fc-glare"></div>
         <div class="fc-corner">
           <div class="fc-rating">${f99(ov)}</div>
           <div class="fc-pos">${POS[prim].ab}</div>
@@ -1057,9 +1074,37 @@ function openCard(id){
         <div class="fc-foot">⚽ ${p.gols||0} gol${(p.gols||0)===1?"":"s"} na temporada${artil?" · 👑 Artilheiro":""}</div>
         <div class="fc-bline"></div>
       </div></div>
-      <div class="fc-hint">toque para fechar</div>
+      <div class="fc-hint">passe o dedo p/ ver o brilho · toque fora p/ fechar</div>
     </div>`;
-  document.getElementById("cardview").classList.add("show");
+  const cv=document.getElementById("cardview");
+  cv.classList.add("show");
+  attachTilt(cv.querySelector(".fcard"));
+}
+/* tilt 3D estilo TCG Pocket — inclina seguindo o dedo, ancorado no centro */
+function attachTilt(card){
+  if(!card) return;
+  const MAX=16;
+  const move=e=>{
+    const r=card.getBoundingClientRect();
+    const px=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    const py=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+    card.style.transition="transform 0s";
+    card.style.transform=`rotateX(${(0.5-py)*MAX}deg) rotateY(${(px-0.5)*MAX}deg)`;
+    card.style.setProperty("--gx",(px*100)+"%"); card.style.setProperty("--gy",(py*100)+"%");
+    card.style.setProperty("--hx",(px*100)+"%"); card.style.setProperty("--hy",(py*100)+"%");
+    card.classList.add("active");
+  };
+  const end=()=>{
+    card.style.transition="transform .5s cubic-bezier(.2,.8,.3,1)";
+    card.style.transform=""; card.classList.remove("active");
+    card.style.setProperty("--gx","50%"); card.style.setProperty("--gy","50%");
+  };
+  card.addEventListener("pointerdown",e=>{ try{card.setPointerCapture(e.pointerId);}catch(_){} move(e); });
+  card.addEventListener("pointermove",move);
+  card.addEventListener("pointerup",end);
+  card.addEventListener("pointercancel",end);
+  card.addEventListener("pointerleave",end);
+  card.addEventListener("click",e=>e.stopPropagation());  // tocar na carta não fecha
 }
 document.getElementById("cardview").addEventListener("click",()=>{
   document.getElementById("cardview").classList.remove("show");
