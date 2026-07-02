@@ -3,7 +3,7 @@
 // reaproveitando lib/state.js. Rode com:  npm start
 import http from "node:http";
 import { readFile } from "node:fs/promises";
-import { readState, writeState } from "./lib/state.js";
+import { readState, writeState, readPhotos, writePhoto, deletePhoto } from "./lib/state.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -42,6 +42,30 @@ const server = http.createServer(async (req, res) => {
         const result = await writeState(parsed);
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
         return res.end(JSON.stringify(result));
+      }
+      res.writeHead(405);
+      return res.end();
+    }
+
+    if (url.pathname === "/api/photos") {
+      if (req.method === "GET") {
+        const photos = await readPhotos();
+        res.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store",
+        });
+        return res.end(JSON.stringify({ photos }));
+      }
+      if (req.method === "POST" || req.method === "PUT") {
+        const body = JSON.parse((await readBody(req)) || "{}");
+        if (!body.playerId) {
+          res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+          return res.end(JSON.stringify({ error: "playerId obrigatório" }));
+        }
+        if (body.data == null || body.data === "") await deletePhoto(body.playerId);
+        else await writePhoto(body.playerId, body.data);
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        return res.end(JSON.stringify({ ok: true }));
       }
       res.writeHead(405);
       return res.end();

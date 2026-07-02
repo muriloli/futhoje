@@ -347,6 +347,15 @@
 
   .tip{font-size:12.5px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.5;font-weight:600}
 
+  /* ---------- Foto do jogador (substitui a inicial) ---------- */
+  .av-img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+  .photo-pick{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .photo-prev{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;overflow:hidden;
+    font-weight:900;font-size:34px;background:var(--surf2);border:2px solid var(--line);color:var(--muted)}
+  .photo-prev img{width:100%;height:100%;object-fit:cover}
+  .photo-actions{display:flex;gap:9px}
+  .photo-actions .btn{padding:10px 16px;min-height:auto}
+
   /* ---------- Mini-quadra com jogadores (aba Times) ---------- */
   .pitch{position:relative;width:100%;aspect-ratio:700/400;border-radius:12px;overflow:hidden;
     margin:2px 0 10px;background:url('court.jpg') center/cover no-repeat;border:1px solid var(--line)}
@@ -668,6 +677,16 @@
   <div class="grabber"></div>
   <h2 id="sheet-title">Novo jogador</h2>
   <div class="field">
+    <div class="photo-pick">
+      <div class="photo-prev" id="f-photo-prev"></div>
+      <div class="photo-actions">
+        <button type="button" class="btn ghost" id="btn-photo">📷 Escolher foto</button>
+        <button type="button" class="btn ghost" id="btn-photo-rm" style="display:none">Remover</button>
+      </div>
+      <input type="file" id="f-photo-input" accept="image/*" style="display:none">
+    </div>
+  </div>
+  <div class="field">
     <label>Nome</label>
     <input type="text" id="f-name" placeholder="Ex: Murilo" autocomplete="off">
   </div>
@@ -894,6 +913,34 @@ async function pullFromServer(){
   }
 }
 document.getElementById("sync-dot").addEventListener("click", pullFromServer);
+
+/* ---- Fotos dos jogadores (tabela própria via /api/photos) ---- */
+const PHOTOS_URL = "/api/photos";
+const PHOTOS = (()=>{ try{ return JSON.parse(localStorage.getItem("quadra_photos"))||{}; }catch(e){ return {}; } })();
+function savePhotosLocal(){ try{ localStorage.setItem("quadra_photos", JSON.stringify(PHOTOS)); }catch(e){} }
+function playerPhoto(p){ return (p && PHOTOS[p.id]) || null; }
+// devolve <img> com a foto, ou o HTML da inicial como fallback
+function avatarInner(p, fallbackHTML){
+  const ph=playerPhoto(p);
+  return ph ? `<img class="av-img" src="${ph}" alt="">` : fallbackHTML;
+}
+async function pushPhoto(pid, data){
+  try{ await fetch(PHOTOS_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({playerId:pid, data})}); }
+  catch(e){ setSyncState("off"); }
+}
+async function pullPhotos(){
+  try{
+    const r=await fetch(PHOTOS_URL, {cache:"no-store"}); if(!r.ok) return;
+    const {photos}=await r.json();
+    if(photos && typeof photos==="object"){
+      for(const k in PHOTOS) delete PHOTOS[k];
+      Object.assign(PHOTOS, photos);
+      savePhotosLocal();
+      renderPlayers(); renderLineup(); renderLeaders();   // repinta avatares
+    }
+  }catch(e){}
+}
+
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const cssvar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
@@ -967,7 +1014,7 @@ function renderPlayers(){
     }).join("");
     return `<div class="player ${inact?'inactive':''}" data-id="${p.id}">
       <div class="avatar" style="background:${col}22;color:${col}">
-        <span class="num">${initials(p.nome)}</span>
+        ${avatarInner(p, `<span class="num">${initials(p.nome)}</span>`)}
         <span class="posdot" style="background:${col}">${POS[primary].ab[0]}</span>
       </div>
       <div class="pinfo edit" data-id="${p.id}">
@@ -991,6 +1038,40 @@ document.getElementById("player-list").addEventListener("click", e=>{
 const scrim=document.getElementById("scrim"), sheet=document.getElementById("sheet");
 let editingId=null, fPositions=["Ala"], fLevel=3, fActive=true;
 let fSkills=defaultSkills(3), fGk=defaultGk(3);
+let fPhoto=null;   // data URI da foto em edição (ou null)
+
+/* ---- seletor de foto: redimensiona/recorta em quadrado e comprime ---- */
+function fileToAvatar(file, cb){
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  img.onload=()=>{
+    const S=320;                                  // 320x320, cover crop
+    const c=document.createElement("canvas"); c.width=S; c.height=S;
+    const ctx=c.getContext("2d");
+    const scale=Math.max(S/img.width, S/img.height);
+    const w=img.width*scale, h=img.height*scale;
+    ctx.drawImage(img,(S-w)/2,(S-h)/2,w,h);
+    URL.revokeObjectURL(url);
+    try{ cb(c.toDataURL("image/jpeg",0.82)); }catch(e){ toast("Não consegui processar a imagem"); }
+  };
+  img.onerror=()=>{ URL.revokeObjectURL(url); toast("Não consegui ler a imagem"); };
+  img.src=url;
+}
+function paintPhotoPrev(){
+  const prev=document.getElementById("f-photo-prev");
+  const rm=document.getElementById("btn-photo-rm");
+  const nm=document.getElementById("f-name").value.trim();
+  if(fPhoto){ prev.innerHTML=`<img src="${fPhoto}" alt="">`; rm.style.display=""; }
+  else{ prev.textContent = nm ? initials(nm) : "?"; rm.style.display="none"; }
+}
+document.getElementById("btn-photo").addEventListener("click",()=>document.getElementById("f-photo-input").click());
+document.getElementById("f-photo-input").addEventListener("change",e=>{
+  const file=e.target.files&&e.target.files[0]; if(!file) return;
+  fileToAvatar(file, dataUri=>{ fPhoto=dataUri; paintPhotoPrev(); });
+  e.target.value="";   // permite re-selecionar o mesmo arquivo
+});
+document.getElementById("btn-photo-rm").addEventListener("click",()=>{ fPhoto=null; paintPhotoPrev(); });
+document.getElementById("f-name").addEventListener("input",()=>{ if(!fPhoto) paintPhotoPrev(); });
 
 /* ---- radar (gráfico estilo FIFA) ---- */
 function radarSVG(items, vals, color){
@@ -1073,7 +1154,7 @@ function openCard(id){
           ${sec?`<div class="fc-sep2"></div><div class="fc-secpos">${sec}</div>`:""}
         </div>
         <div class="fc-tiername">${tier.nome}</div>
-        <div class="fc-av">${initials(p.nome)}</div>
+        <div class="fc-av">${avatarInner(p, initials(p.nome))}</div>
         <div class="fc-name">${esc(p.nome)}</div>
         <div class="fc-line"></div>
         <div class="fc-attrs">${attrsHtml}</div>
@@ -1166,14 +1247,16 @@ function openSheet(id){
     fPositions=p.posicoes.slice(); fLevel=Math.min(5,Math.max(1,Math.round(p.nivel)||3)); fActive=p.ativo!==false; delBtn.style.display="";
     fSkills=Object.assign(defaultSkills(fLevel), p.skills||{});
     fGk=Object.assign(defaultGk(fLevel), p.gk||{});
+    fPhoto=PHOTOS[id]||null;
   }else{
     document.getElementById("sheet-title").textContent="Novo jogador";
     document.getElementById("f-name").value="";
     fPositions=["Ala"]; fLevel=3; fActive=true; delBtn.style.display="none";
     fSkills=defaultSkills(3); fGk=defaultGk(3);
+    fPhoto=null;
   }
   document.getElementById("btn-card").style.display = id ? "" : "none";
-  paintPos(); paintLevel(); paintActive(); renderSkillsUI();
+  paintPos(); paintLevel(); paintActive(); renderSkillsUI(); paintPhotoPrev();
   scrim.classList.add("show"); sheet.classList.add("show");
 }
 function closeSheet(){ scrim.classList.remove("show"); sheet.classList.remove("show"); }
@@ -1231,9 +1314,10 @@ document.getElementById("theme-pick").addEventListener("click", e=>{
 document.getElementById("btn-save").addEventListener("click", ()=>{
   const name = document.getElementById("f-name").value.trim();
   if(!name){ toast("Coloque o nome do jogador"); return; }
+  let pid;
   if(editingId){
     const p = DB.players.find(x=>x.id===editingId);
-    p.nome=name; p.posicoes=fPositions.slice(); p.ativo=fActive;
+    p.nome=name; p.posicoes=fPositions.slice(); p.ativo=fActive; pid=p.id;
     if(DB.skillMode){
       p.skills={...fSkills}; if(fPositions.includes("Goleiro")) p.gk={...fGk};
       p.nivel=computeOverall(p);
@@ -1245,15 +1329,22 @@ document.getElementById("btn-save").addEventListener("click", ()=>{
       np.skills={...fSkills}; if(fPositions.includes("Goleiro")) np.gk={...fGk};
       np.nivel=computeOverall(np);
     }
-    DB.players.push(np);
+    DB.players.push(np); pid=np.id;
     toast("Jogador adicionado");
+  }
+  // foto: persiste na tabela própria só se mudou
+  if(fPhoto !== (PHOTOS[pid]||null)){
+    if(fPhoto){ PHOTOS[pid]=fPhoto; } else { delete PHOTOS[pid]; }
+    savePhotosLocal(); pushPhoto(pid, fPhoto);
   }
   save(); renderPlayers(); refreshLineupAfterRoster(); closeSheet();
 });
 document.getElementById("btn-del").addEventListener("click", ()=>{
   const p = DB.players.find(x=>x.id===editingId);
   askConfirm("Excluir jogador?", `“${p.nome}” será removido do elenco.`, ()=>{
-    DB.players = DB.players.filter(x=>x.id!==editingId);
+    const rmId=editingId;
+    DB.players = DB.players.filter(x=>x.id!==rmId);
+    if(PHOTOS[rmId]){ delete PHOTOS[rmId]; savePhotosLocal(); pushPhoto(rmId, null); }
     save(); renderPlayers(); refreshLineupAfterRoster(); closeSheet(); toast("Jogador excluído");
   });
 });
@@ -1393,7 +1484,7 @@ function renderLeaders(){
     const m=medals[idx].c;
     return `<div class="pod pod${idx+1}">
       ${idx===0?'<div class="crown">👑</div>':''}
-      <div class="pavatar" style="border-color:${m};background:${m}22;color:${m}">${initials(p.nome)}</div>
+      <div class="pavatar" style="border-color:${m};background:${m}22;color:${m}">${avatarInner(p, initials(p.nome))}</div>
       <div class="pname">${esc(p.nome)}</div>
       <div class="pgols" style="color:${m}">${p.gols}<small>gols</small></div>
       <div class="pedestal" style="background:linear-gradient(180deg,${m},${m}bb)">${idx+1}</div>
@@ -1406,7 +1497,7 @@ function renderLeaders(){
         const col=cssvar(POS[p.posicoes[0]].c);
         return `<div class="lead-row">
           <span class="lead-rank">${i+4}</span>
-          <span class="lead-av" style="background:${col}22;color:${col}">${initials(p.nome)}</span>
+          <span class="lead-av" style="background:${col}22;color:${col}">${avatarInner(p, initials(p.nome))}</span>
           <span class="lead-name">${esc(p.nome)}</span>
           <span class="lead-g">${p.gols}<small>gols</small></span></div>`;
       }).join("")
@@ -1595,7 +1686,7 @@ function renderLineup(){
       const sel=(selected&&selected.kind==='starter'&&selected.t===ti&&selected.s===si)?" sel":"";
       const st=`left:${XY.x}%;top:${XY.y}%;transform:translate(-50%,-50%) scale(${sc})`;
       if(p) return `<div class="pmark clickable${sel}" data-t="${ti}" data-s="${si}" style="${st}">
-        <span class="pm-av" style="background:${col}">${initials(p.nome)}</span>
+        <span class="pm-av" style="background:${col}">${avatarInner(p, initials(p.nome))}</span>
         <span class="pm-name">${esc(p.nome.split(" ")[0])}</span></div>`;
       return `<div class="pmark vaga clickable${sel}" data-t="${ti}" data-s="${si}" style="${st}">
         <span class="pm-av" style="border-color:${col}">${POS[s.pos].ab}</span>
@@ -1748,6 +1839,7 @@ function applyLoadedData(){
 buildPosButtons(); buildLevelButtons(); renderLevels();
 applyLoadedData();      // pinta imediatamente com o cache local (boot instantâneo)
 pullFromServer();       // busca a versão salva no banco e reconcilia em segundo plano
+pullPhotos();           // busca as fotos dos jogadores
 </script>
 </body>
 </html>
