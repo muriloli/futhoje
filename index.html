@@ -300,6 +300,7 @@
   .lead-g{font-family:'JetBrains Mono';font-weight:800;font-size:19px;color:var(--accent);flex:none}
   .lead-g small{font-size:10px;color:var(--muted);font-weight:700;margin-left:3px}
   .lead-note{padding:16px;text-align:center;font-size:13px;color:var(--faint);font-weight:600}
+  .season-range{font-size:12px;color:var(--faint);font-weight:700;margin:-4px 2px 14px;letter-spacing:.2px}
 
   /* ---------- Sheet / Modal ---------- */
   .scrim{position:fixed;inset:0;z-index:40;background:#000a;backdrop-filter:blur(2px);
@@ -651,9 +652,11 @@
     <!-- ===== LÍDERES ===== -->
     <section class="view" id="view-lideres">
       <div class="section-head"><h2>Líderes · Artilharia</h2><span class="meta" id="lead-meta"></span></div>
+      <div class="filters" id="season-tabs"></div>
+      <div class="season-range" id="season-range"></div>
       <div class="podium" id="podium"></div>
       <div class="card" id="lead-list"></div>
-      <p class="tip">Ranking por total de gols na temporada. Os gols entram pela aba Partida.</p>
+      <p class="tip">Cada temporada dura 2 meses. Ao virar a temporada, o ranking é arquivado e você pode revê-lo tocando nas abas acima.</p>
     </section>
 
     <!-- ===== NÍVEIS ===== -->
@@ -973,7 +976,7 @@ function switchView(v){
   document.getElementById("fab").style.display = (v==="elenco")?"grid":"none";
   if(v==="partida"){ paintScores(); renderScorers(); }
   if(v==="historico") renderHistory();
-  if(v==="lideres") renderLeaders();
+  if(v==="lideres"){ viewSeason=null; renderLeaders(); }
 }
 
 /* ===================== ELENCO ===================== */
@@ -1471,18 +1474,80 @@ document.getElementById("btn-clearhist").addEventListener("click", ()=>{
   });
 });
 
+/* ===================== TEMPORADAS ===================== */
+// Temporada 1 começa em 01/07/2026; cada uma dura 2 meses.
+const SEASON_Y0=2026, SEASON_M0=6;   // julho (mês 0-indexed)
+function seasonIndexFor(d){
+  const months=(d.getFullYear()-SEASON_Y0)*12 + (d.getMonth()-SEASON_M0);
+  return months<0 ? 0 : Math.floor(months/2);
+}
+function seasonWindow(index){
+  return { start:new Date(SEASON_Y0, SEASON_M0+index*2, 1),
+           end:new Date(SEASON_Y0, SEASON_M0+index*2+2, 1) };
+}
+function seasonRange(index){
+  const w=seasonWindow(index);
+  const f=d=>String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+  return f(w.start)+" a "+f(w.end);
+}
+function curSeasonIndex(){ return DB.season!==undefined ? DB.season : seasonIndexFor(new Date()); }
+// Ao entrar numa nova temporada: arquiva o ranking atual e zera os gols.
+function checkSeasonRollover(){
+  const cur=seasonIndexFor(new Date());
+  if(DB.season===undefined){ DB.season=cur; return; }   // dados existentes → temporada atual
+  if(cur>DB.season){
+    if(!DB.seasons) DB.seasons={};
+    const standings=DB.players.filter(p=>(p.gols||0)>0)
+      .map(p=>({id:p.id,nome:p.nome,gols:p.gols,posicoes:(p.posicoes||["Ala"]).slice()}))
+      .sort((a,b)=>b.gols-a.gols||a.nome.localeCompare(b.nome));
+    DB.seasons[DB.season]={index:DB.season, standings, endedAt:new Date().toISOString()};
+    DB.players.forEach(p=>{ p.gols=0; });
+    DB.season=cur;
+    save();
+  }
+}
+
 /* ===================== LÍDERES ===================== */
+let viewSeason=null;   // null = temporada atual; senão o índice de uma arquivada
+function seasonRankingFor(idx){
+  if(idx===curSeasonIndex())
+    return DB.players.filter(p=>(p.gols||0)>0).sort((a,b)=>b.gols-a.gols||a.nome.localeCompare(b.nome));
+  const s=DB.seasons && DB.seasons[idx];
+  return s ? s.standings.slice() : [];
+}
+function renderSeasonTabs(sel){
+  const el=document.getElementById("season-tabs");
+  const cur=curSeasonIndex();
+  const past=DB.seasons ? Object.keys(DB.seasons).map(Number).filter(i=>i<cur).sort((a,b)=>b-a) : [];
+  const items=[cur, ...past];
+  el.innerHTML=items.map(i=>{
+    const on=i===sel ? "on" : "";
+    const lbl=i===cur ? `Atual · T${i+1}` : `T${i+1}`;
+    return `<button class="chip ${on}" data-season="${i}">${lbl}</button>`;
+  }).join("");
+  document.getElementById("season-range").textContent =
+    `Temporada ${sel+1} · ${seasonRange(sel)}` + (sel===cur ? " · em andamento" : "");
+}
+document.getElementById("season-tabs").addEventListener("click", e=>{
+  const b=e.target.closest("[data-season]"); if(!b) return;
+  const i=+b.dataset.season;
+  viewSeason = (i===curSeasonIndex()) ? null : i;
+  renderLeaders();
+});
 function renderLeaders(){
+  checkSeasonRollover();
+  const sel = viewSeason===null ? curSeasonIndex() : viewSeason;
+  renderSeasonTabs(sel);
+  const ranked=seasonRankingFor(sel);
   const podEl=document.getElementById("podium");
   const listEl=document.getElementById("lead-list");
   const meta=document.getElementById("lead-meta");
-  const ranked=DB.players.filter(p=>(p.gols||0)>0).sort((a,b)=> b.gols-a.gols || a.nome.localeCompare(b.nome));
   meta.textContent = ranked.length ? `${ranked.length} artilheiro${ranked.length>1?"s":""}` : "";
   if(!ranked.length){
     podEl.style.display="none";
     listEl.innerHTML=`<div class="empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>
-      <p>Ninguém marcou gol ainda</p><small>Marque os gols na aba Partida para montar a artilharia</small></div>`;
+      <p>${sel===curSeasonIndex()?"Ninguém marcou gol ainda":"Sem gols nesta temporada"}</p><small>${sel===curSeasonIndex()?"Marque os gols na aba Partida para montar a artilharia":"Nenhum gol foi registrado neste período"}</small></div>`;
     return;
   }
   podEl.style.display="flex";
@@ -1831,6 +1896,7 @@ function applyLoadedData(){
     if(p.ativo===undefined) p.ativo=true;
   });
   if(!DB.history) DB.history=[];
+  checkSeasonRollover();   // vira a temporada (arquiva + zera) se o período mudou
   // re-sincroniza variáveis de estado que derivam do DB
   numTeams = DB.numTeams||2;
   if(!running) secs = DB.halfMin*60;
