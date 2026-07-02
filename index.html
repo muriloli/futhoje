@@ -363,14 +363,13 @@
     --gk:#D89400; --fixo:#1976D2; --ala:#0E9E7E; --pivo:#E06A1D;
     --teamA:#1976D2; --teamB:#E23B3B; --warn:#D95B20;
   }
-  html.aero body{
+  html.aero body{background:#7FBFE9}
+  /* foto de nuvens fixa atrás de tudo (pseudo-elemento p/ funcionar também no iOS) */
+  html.aero body::before{
+    content:"";position:fixed;inset:0;z-index:-1;
     background:
-      radial-gradient(55% 34% at 18% 10%, rgba(255,255,255,.85), transparent 70%),
-      radial-gradient(45% 30% at 82% 26%, rgba(255,255,255,.65), transparent 70%),
-      radial-gradient(65% 40% at 45% 70%, rgba(255,255,255,.5), transparent 72%),
-      radial-gradient(40% 28% at 90% 88%, rgba(255,255,255,.55), transparent 70%),
-      linear-gradient(180deg,#C4E9FF 0%,#8FCBF0 45%,#5CACE0 100%);
-    background-attachment:fixed;
+      linear-gradient(180deg,rgba(255,255,255,.12),rgba(90,150,200,.15)),
+      url('aero-bg.jpg') center/cover no-repeat #7FBFE9;
   }
   html.aero header.top{background:rgba(255,255,255,.5);border-bottom:1px solid rgba(255,255,255,.9)}
   html.aero .brand h1{color:#06344F;text-shadow:0 1px 0 rgba(255,255,255,.8)}
