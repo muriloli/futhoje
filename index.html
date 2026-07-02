@@ -345,6 +345,93 @@
   .toast.show{opacity:1;transform:translate(-50%,0)}
 
   .tip{font-size:12.5px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.5;font-weight:600}
+
+  /* ---------- Botão de configurações ---------- */
+  .cfg-btn{width:34px;height:34px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);
+    display:grid;place-items:center;flex:none;align-self:center}
+  .cfg-btn svg{width:18px;height:18px;color:var(--muted)}
+  .cfg-btn:active{transform:scale(.92)}
+
+  /* ============================================================
+     TEMA FRUTIGER AERO — céu azul, vidro translúcido e brilho gel
+     Ativado pela classe "aero" no <html> (Configurações ⚙)
+     ============================================================ */
+  html.aero{
+    --bg:#7FBFE9; --bg2:#EAF7FF; --surf:rgba(255,255,255,.62); --surf2:rgba(255,255,255,.8);
+    --line:rgba(255,255,255,.85); --text:#0B3556; --muted:#2E6E99; --faint:#6B9DC0;
+    --accent:#28A9E0; --accent-press:#1690C6; --ink:#ffffff;
+    --gk:#D89400; --fixo:#1976D2; --ala:#0E9E7E; --pivo:#E06A1D;
+    --teamA:#1976D2; --teamB:#E23B3B; --warn:#D95B20;
+  }
+  html.aero body{
+    background:
+      radial-gradient(55% 34% at 18% 10%, rgba(255,255,255,.85), transparent 70%),
+      radial-gradient(45% 30% at 82% 26%, rgba(255,255,255,.65), transparent 70%),
+      radial-gradient(65% 40% at 45% 70%, rgba(255,255,255,.5), transparent 72%),
+      radial-gradient(40% 28% at 90% 88%, rgba(255,255,255,.55), transparent 70%),
+      linear-gradient(180deg,#C4E9FF 0%,#8FCBF0 45%,#5CACE0 100%);
+    background-attachment:fixed;
+  }
+  html.aero header.top{background:rgba(255,255,255,.5);border-bottom:1px solid rgba(255,255,255,.9)}
+  html.aero .brand h1{color:#06344F;text-shadow:0 1px 0 rgba(255,255,255,.8)}
+  html.aero .logo{background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,0) 55%),linear-gradient(180deg,#54C6F5,#0E86C8);box-shadow:0 2px 6px rgba(10,90,140,.4)}
+  html.aero nav.tabs{background:rgba(255,255,255,.6);border-top:1px solid rgba(255,255,255,.95)}
+  html.aero nav.tabs button.active{color:#0077BE}
+  html.aero nav.tabs button.active svg{filter:drop-shadow(0 0 5px rgba(0,150,220,.5))}
+
+  html.aero .card,html.aero .stat,html.aero .teamcard,html.aero .switch,html.aero .levelcard{
+    background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.4));
+    border:1px solid rgba(255,255,255,.95);
+    box-shadow:0 8px 22px rgba(20,80,125,.22), inset 0 1px 0 rgba(255,255,255,.95);
+  }
+  html.aero .score-board{
+    background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.45));
+    border:1px solid rgba(255,255,255,.95);
+    box-shadow:0 10px 28px rgba(20,80,125,.28), inset 0 1px 0 #fff;
+  }
+  html.aero .score-board::before{background:linear-gradient(180deg,rgba(255,255,255,.55),transparent 55%)}
+  html.aero .clock{color:#06344F;text-shadow:0 1px 0 rgba(255,255,255,.9)}
+  html.aero .clock.warn{color:#C74A12}
+  html.aero .period-tag .pill{background:rgba(255,255,255,.7);color:#2E6E99;border-color:rgba(255,255,255,.9)}
+
+  html.aero .btn{
+    background:linear-gradient(180deg,#fff,#DCF0FB);
+    border:1px solid rgba(255,255,255,.95);color:#0B3556;
+    box-shadow:0 3px 8px rgba(20,80,125,.22), inset 0 1px 0 #fff;
+  }
+  html.aero .btn.ghost{background:rgba(255,255,255,.42)}
+  html.aero .btn.primary{
+    background:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.2) 48%,rgba(255,255,255,0) 52%),
+               linear-gradient(180deg,#54C6F5,#0E86C8);
+    color:#fff;text-shadow:0 1px 2px rgba(4,58,89,.55);
+    box-shadow:0 5px 14px rgba(14,134,200,.45), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  html.aero .btn.primary:active{background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,.1) 48%,rgba(255,255,255,0) 52%),linear-gradient(180deg,#2FAEE6,#0B76B2)}
+  html.aero .btn.danger{background:linear-gradient(180deg,#FFE9E4,#FFC9BD);color:#B02E1C;border:1px solid #fff}
+  html.aero .fab{
+    background:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.2) 48%,rgba(255,255,255,0) 55%),
+               linear-gradient(180deg,#54C6F5,#0E86C8);
+    color:#fff;box-shadow:0 8px 22px rgba(14,134,200,.5),0 2px 8px rgba(6,52,79,.3);
+  }
+  html.aero .gbtn{box-shadow:inset 0 1px 0 #fff,0 2px 5px rgba(20,80,125,.2)}
+  html.aero .gbtn.plus{background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.15) 55%),linear-gradient(180deg,#54C6F5,#0E86C8);color:#fff}
+  html.aero .chip{box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+  html.aero .chip.on{background:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,.1) 55%),linear-gradient(180deg,#54C6F5,#0E86C8);color:#fff;border-color:rgba(255,255,255,.9)}
+  html.aero .sheet,html.aero .confirm .box{
+    background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(224,243,255,.94));
+    border:1px solid #fff;box-shadow:0 -8px 30px rgba(20,80,125,.3), inset 0 1px 0 #fff;
+  }
+  html.aero .toast{background:rgba(255,255,255,.94);color:#0B3556;border-color:#fff;box-shadow:0 6px 18px rgba(20,80,125,.35)}
+  html.aero .sync-dot.ok{box-shadow:0 0 8px rgba(40,169,224,.7)}
+  html.aero .star-off{color:#B9D8EC}
+  html.aero .lv-badge{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+  html.aero .res-badge.win{background:rgba(40,169,224,.16);color:#0077BE}
+  html.aero .res-badge.draw{background:rgba(46,110,153,.14)}
+  html.aero .edit-hint{background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,.1) 55%),linear-gradient(180deg,#54C6F5,#0E86C8);color:#fff}
+  html.aero .pedestal{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+  html.aero .slot.sel .mname,html.aero .slot.sel .mlvl{color:#fff}
+  html.aero .slot.sel .plabel{background:#ffffff33!important;color:#fff!important}
+  html.aero :focus-visible{outline-color:#0077BE}
 </style>
 </head>
 <body>
@@ -358,6 +445,9 @@
       <span>Gerenciador de Futsal</span>
     </div>
     <button class="sync-dot" id="sync-dot" title="Status do banco de dados — toque para sincronizar" aria-label="status de sincronização"></button>
+    <button class="cfg-btn" id="btn-settings" title="Configurações" aria-label="configurações">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
   </header>
 
   <main>
@@ -510,6 +600,21 @@
   </div>
 </div>
 
+<!-- Sheet configurações -->
+<div class="sheet" id="sheet-settings">
+  <div class="grabber"></div>
+  <h2>⚙️ Configurações</h2>
+  <div class="field">
+    <label>Design do aplicativo</label>
+    <div class="seg" id="theme-pick" style="grid-template-columns:repeat(2,1fr)">
+      <button data-theme="solid"><span style="font-size:20px">🌑</span><span>Sólido</span></button>
+      <button data-theme="aero"><span style="font-size:20px">💧</span><span>Frutiger Aero</span></button>
+    </div>
+    <div class="lvl-desc" id="theme-desc"></div>
+  </div>
+  <button class="btn primary block" id="btn-close-settings" style="margin-top:6px">Fechar</button>
+</div>
+
 <!-- Confirm -->
 <div class="confirm" id="confirm">
   <div class="box">
@@ -649,6 +754,16 @@ async function pullFromServer(){
 document.getElementById("sync-dot").addEventListener("click", pullFromServer);
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const cssvar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ---- Tema (Sólido / Frutiger Aero) — preferência local deste aparelho ---- */
+let theme = "solid";
+try{ theme = localStorage.getItem("quadra_theme")==="aero" ? "aero" : "solid"; }catch(e){}
+function applyTheme(){
+  document.documentElement.classList.toggle("aero", theme==="aero");
+  const mc=document.querySelector('meta[name="theme-color"]');
+  if(mc) mc.setAttribute("content", theme==="aero" ? "#7FBFE9" : "#0E1217");
+}
+applyTheme();   // aplica antes de qualquer render, sem "piscar" o tema errado
 
 /* ===================== VIEWS ===================== */
 const tabs = document.getElementById("tabs");
@@ -790,6 +905,36 @@ function openSheet(id){
 function closeSheet(){ scrim.classList.remove("show"); sheet.classList.remove("show"); }
 scrim.addEventListener("click", closeSheet);
 document.getElementById("fab").addEventListener("click", ()=>openSheet());
+
+/* ===================== CONFIGURAÇÕES ===================== */
+const settingsSheet = document.getElementById("sheet-settings");
+scrim.addEventListener("click", ()=>settingsSheet.classList.remove("show"));
+function paintThemePick(){
+  document.querySelectorAll("#theme-pick button").forEach(b=>{
+    const on = b.dataset.theme===theme;
+    b.classList.toggle("on", on);
+    b.style.background = on ? cssvar("--accent") : "";
+    b.style.borderColor = on ? "transparent" : "";
+  });
+  document.getElementById("theme-desc").textContent = theme==="aero"
+    ? "Céu azul, vidro e brilho — estética anos 2000 (Windows Vista/iPod)."
+    : "Visual escuro sólido, o padrão do app.";
+}
+document.getElementById("btn-settings").addEventListener("click", ()=>{
+  paintThemePick(); scrim.classList.add("show"); settingsSheet.classList.add("show");
+});
+document.getElementById("btn-close-settings").addEventListener("click", ()=>{
+  settingsSheet.classList.remove("show"); scrim.classList.remove("show");
+});
+document.getElementById("theme-pick").addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b || b.dataset.theme===theme) return;
+  theme=b.dataset.theme;
+  try{ localStorage.setItem("quadra_theme", theme); }catch(err){}
+  applyTheme(); paintThemePick();
+  // várias cores são resolvidas em JS na hora de renderizar → repinta tudo
+  buildPosButtons(); renderLevels(); applyLoadedData();
+  toast(theme==="aero" ? "Design Frutiger Aero ativado 💧" : "Design Sólido ativado 🌑");
+});
 
 document.getElementById("btn-save").addEventListener("click", ()=>{
   const name = document.getElementById("f-name").value.trim();
