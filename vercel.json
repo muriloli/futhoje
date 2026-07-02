@@ -4,6 +4,7 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "aero-bg.jpg", "use": "@vercel/static" },
     { "src": "court.jpg", "use": "@vercel/static" },
+    { "src": "icon.jpg", "use": "@vercel/static" },
     { "src": "api/state.js", "use": "@vercel/node" },
     { "src": "api/photos.js", "use": "@vercel/node" }
   ],
@@ -11,6 +12,7 @@
     { "src": "/", "dest": "/index.html" },
     { "src": "/aero-bg.jpg", "dest": "/aero-bg.jpg" },
     { "src": "/court.jpg", "dest": "/court.jpg" },
+    { "src": "/icon.jpg", "dest": "/icon.jpg" },
     { "src": "/api/state", "methods": ["GET", "POST", "PUT"], "dest": "/api/state.js" },
     { "src": "/api/photos", "methods": ["GET", "POST", "PUT"], "dest": "/api/photos.js" }
   ]

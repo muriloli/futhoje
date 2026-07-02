@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0E1217">
 <title>Quadra — Gerenciador de Futsal</title>
+<link rel="icon" type="image/jpeg" href="/icon.jpg">
+<link rel="apple-touch-icon" href="/icon.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
@@ -651,7 +653,11 @@
 
     <!-- ===== LÍDERES ===== -->
     <section class="view" id="view-lideres">
-      <div class="section-head"><h2>Líderes · Artilharia</h2><span class="meta" id="lead-meta"></span></div>
+      <div class="section-head"><h2>Líderes</h2><span class="meta" id="lead-meta"></span></div>
+      <div class="seg" id="lead-mode" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+        <button data-mode="gols" class="on">⚽ Artilheiros</button>
+        <button data-mode="gk">🧤 Goleiros</button>
+      </div>
       <div class="filters" id="season-tabs"></div>
       <div class="season-range" id="season-range"></div>
       <div class="podium" id="podium"></div>
@@ -976,7 +982,7 @@ function switchView(v){
   document.getElementById("fab").style.display = (v==="elenco")?"grid":"none";
   if(v==="partida"){ paintScores(); renderScorers(); }
   if(v==="historico") renderHistory();
-  if(v==="lideres"){ viewSeason=null; renderLeaders(); }
+  if(v==="lideres"){ viewSeason=null; leadMode="gols"; renderLeaders(); }
 }
 
 /* ===================== ELENCO ===================== */
@@ -1397,6 +1403,7 @@ document.getElementById("btn-endmatch").addEventListener("click", ()=>{
   if(!DB.lineup){ toast("Monte os times antes de encerrar"); return; }
   askConfirm("Encerrar e salvar?", "A partida vai para o Histórico e o placar zera para a próxima. O total de gols na temporada é mantido.", ()=>{
     saveMatchToHistory();
+    awardGkPoints();
     DB.period=1;
     DB.players.forEach(p=>p.matchGoals=0);
     save(); resetClock();
@@ -1415,6 +1422,23 @@ function saveMatchToHistory(){
     .sort((a,b)=>b.goals-a.goals || a.name.localeCompare(b.name));
   if(!DB.history) DB.history=[];
   DB.history.unshift({ id:uid(), date:new Date().toISOString(), numTeams:DB.lineup.numTeams, teams, scorers });
+}
+// Pontos de goleiro (só no modo 2 times): +0,5 por gol do time, -0,25 por sofrido, +1 se não sofreu.
+function awardGkPoints(){
+  if(!DB.lineup || DB.lineup.numTeams!==2) return;
+  const gks=[];
+  for(let i=0;i<2;i++){
+    const gkSlot=DB.lineup.teams[i].slots.find(s=>s.pos==="Goleiro" && s.pid);
+    if(!gkSlot) continue;
+    const gk=byId(gkSlot.pid); if(!gk) continue;
+    const scored=teamScore(i), conceded=teamScore(i===0?1:0);
+    let pts=0.5*scored - 0.25*conceded + (conceded===0 ? 1 : 0);
+    pts=Math.round(pts*100)/100;
+    gk.gkPoints=Math.round(((gk.gkPoints||0)+pts)*100)/100;
+    gk.gkGames=(gk.gkGames||0)+1;
+    gks.push({name:gk.nome, points:pts, cleanSheet:conceded===0});
+  }
+  if(gks.length && DB.history[0]) DB.history[0].gks=gks;   // guarda no jogo p/ referência
 }
 function fmtMatchDate(iso){
   const d=new Date(iso), now=new Date();
@@ -1500,8 +1524,11 @@ function checkSeasonRollover(){
     const standings=DB.players.filter(p=>(p.gols||0)>0)
       .map(p=>({id:p.id,nome:p.nome,gols:p.gols,posicoes:(p.posicoes||["Ala"]).slice()}))
       .sort((a,b)=>b.gols-a.gols||a.nome.localeCompare(b.nome));
-    DB.seasons[DB.season]={index:DB.season, standings, endedAt:new Date().toISOString()};
-    DB.players.forEach(p=>{ p.gols=0; });
+    const gkStandings=DB.players.filter(p=>(p.gkGames||0)>0)
+      .map(p=>({id:p.id,nome:p.nome,gkPoints:p.gkPoints||0,gkGames:p.gkGames||0,posicoes:(p.posicoes||["Ala"]).slice()}))
+      .sort((a,b)=>(b.gkPoints||0)-(a.gkPoints||0)||a.nome.localeCompare(b.nome));
+    DB.seasons[DB.season]={index:DB.season, standings, gkStandings, endedAt:new Date().toISOString()};
+    DB.players.forEach(p=>{ p.gols=0; p.gkPoints=0; p.gkGames=0; });
     DB.season=cur;
     save();
   }
@@ -1509,11 +1536,18 @@ function checkSeasonRollover(){
 
 /* ===================== LÍDERES ===================== */
 let viewSeason=null;   // null = temporada atual; senão o índice de uma arquivada
-function seasonRankingFor(idx){
-  if(idx===curSeasonIndex())
-    return DB.players.filter(p=>(p.gols||0)>0).sort((a,b)=>b.gols-a.gols||a.nome.localeCompare(b.nome));
+let leadMode="gols";   // "gols" (artilheiros) | "gk" (goleiros)
+function seasonRankingFor(idx, mode){
+  const isGK = mode==="gk";
+  if(idx===curSeasonIndex()){
+    const arr = isGK ? DB.players.filter(p=>(p.gkGames||0)>0)
+                     : DB.players.filter(p=>(p.gols||0)>0);
+    return arr.slice().sort((a,b)=>
+      (isGK ? (b.gkPoints||0)-(a.gkPoints||0) : (b.gols||0)-(a.gols||0)) || a.nome.localeCompare(b.nome));
+  }
   const s=DB.seasons && DB.seasons[idx];
-  return s ? s.standings.slice() : [];
+  if(!s) return [];
+  return (isGK ? (s.gkStandings||[]) : (s.standings||[])).slice();
 }
 function renderSeasonTabs(sel){
   const el=document.getElementById("season-tabs");
@@ -1534,20 +1568,41 @@ document.getElementById("season-tabs").addEventListener("click", e=>{
   viewSeason = (i===curSeasonIndex()) ? null : i;
   renderLeaders();
 });
+document.getElementById("lead-mode").addEventListener("click", e=>{
+  const b=e.target.closest("[data-mode]"); if(!b) return;
+  leadMode=b.dataset.mode; renderLeaders();
+});
+const fmtPts = v => (Math.round(v*100)/100).toString().replace(".",",");
 function renderLeaders(){
   checkSeasonRollover();
+  const isGK = leadMode==="gk";
+  const unit = isGK ? "pts" : "gols";
+  const valTxt = p => isGK ? fmtPts(p.gkPoints||0) : (p.gols||0);
   const sel = viewSeason===null ? curSeasonIndex() : viewSeason;
   renderSeasonTabs(sel);
-  const ranked=seasonRankingFor(sel);
+  // pinta o seletor de modo
+  document.querySelectorAll("#lead-mode button").forEach(b=>{
+    const on=b.dataset.mode===leadMode; b.classList.toggle("on",on);
+    b.style.background=on?cssvar("--accent"):""; b.style.borderColor=on?"transparent":"";
+  });
+  const ranked=seasonRankingFor(sel, leadMode);
   const podEl=document.getElementById("podium");
   const listEl=document.getElementById("lead-list");
   const meta=document.getElementById("lead-meta");
-  meta.textContent = ranked.length ? `${ranked.length} artilheiro${ranked.length>1?"s":""}` : "";
+  meta.textContent = ranked.length ? `${ranked.length} ${isGK?"goleiro":"artilheiro"}${ranked.length>1?"s":""}` : "";
   if(!ranked.length){
     podEl.style.display="none";
-    listEl.innerHTML=`<div class="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>
-      <p>${sel===curSeasonIndex()?"Ninguém marcou gol ainda":"Sem gols nesta temporada"}</p><small>${sel===curSeasonIndex()?"Marque os gols na aba Partida para montar a artilharia":"Nenhum gol foi registrado neste período"}</small></div>`;
+    const isCur=sel===curSeasonIndex();
+    const svg = isGK
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3v7a6 6 0 0 0 12 0V3M4 7h16M4 21h16M8 21v-4M16 21v-4"/></svg>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 6H3v1a3 3 0 0 0 3 3M18 6h3v1a3 3 0 0 1-3 3"/></svg>`;
+    const t = isGK
+      ? (isCur?"Nenhum goleiro pontuou ainda":"Sem pontos de goleiro nesta temporada")
+      : (isCur?"Ninguém marcou gol ainda":"Sem gols nesta temporada");
+    const s = isGK
+      ? "O goleiro pontua ao encerrar uma partida de 2 times"
+      : (isCur?"Marque os gols na aba Partida para montar a artilharia":"Nenhum gol foi registrado neste período");
+    listEl.innerHTML=`<div class="empty">${svg}<p>${t}</p><small>${s}</small></div>`;
     return;
   }
   podEl.style.display="flex";
@@ -1560,7 +1615,7 @@ function renderLeaders(){
       ${idx===0?'<div class="crown">👑</div>':''}
       <div class="pavatar" style="border-color:${m};background:${m}22;color:${m}">${avatarInner(p, initials(p.nome))}</div>
       <div class="pname">${esc(p.nome)}</div>
-      <div class="pgols" style="color:${m}">${p.gols}<small>gols</small></div>
+      <div class="pgols" style="color:${m}">${valTxt(p)}<small>${unit}</small></div>
       <div class="pedestal" style="background:linear-gradient(180deg,${m},${m}bb)">${idx+1}</div>
     </div>`;
   };
@@ -1568,14 +1623,14 @@ function renderLeaders(){
   const rest=ranked.slice(3,10);
   listEl.innerHTML = rest.length
     ? rest.map((p,i)=>{
-        const col=cssvar(POS[p.posicoes[0]].c);
+        const col=cssvar(POS[(p.posicoes&&p.posicoes[0])||"Ala"].c);
         return `<div class="lead-row">
           <span class="lead-rank">${i+4}</span>
           <span class="lead-av" style="background:${col}22;color:${col}">${avatarInner(p, initials(p.nome))}</span>
           <span class="lead-name">${esc(p.nome)}</span>
-          <span class="lead-g">${p.gols}<small>gols</small></span></div>`;
+          <span class="lead-g">${valTxt(p)}<small>${unit}</small></span></div>`;
       }).join("")
-    : `<div class="lead-note">A artilharia do 4º ao 10º aparece aqui conforme mais jogadores marcam.</div>`;
+    : `<div class="lead-note">Do 4º ao 10º aparece aqui conforme mais ${isGK?"goleiros pontuam":"jogadores marcam"}.</div>`;
 }
 
 function ensureAudio(){ if(!audioCtx){ try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); }
@@ -1894,6 +1949,8 @@ function applyLoadedData(){
     if(p.posicao!==undefined) delete p.posicao;
     if(p.matchGoals===undefined) p.matchGoals=0;
     if(p.ativo===undefined) p.ativo=true;
+    if(p.gkPoints===undefined) p.gkPoints=0;
+    if(p.gkGames===undefined) p.gkGames=0;
   });
   if(!DB.history) DB.history=[];
   checkSeasonRollover();   // vira a temporada (arquiva + zera) se o período mudou
