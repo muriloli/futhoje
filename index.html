@@ -419,7 +419,7 @@
   .fcard.active .fc-glare{opacity:.8}
   .fcard.active .fc-holo{opacity:.5}
   /* conteúdo no plano do cartão (Z0); só o avatar central "salta" (não vaza) */
-  .fc-in{position:relative;transform-style:preserve-3d;padding:28px 20px 44px;text-align:center}
+  .fc-in{position:relative;transform-style:preserve-3d;padding:14px 20px 40px;text-align:center}
   .fc-corner{position:absolute;top:30px;left:26px;text-align:center;line-height:1;z-index:1}
   .fc-rating{font-family:'JetBrains Mono';font-weight:800;font-size:44px}
   .fc-pos{font-size:14px;font-weight:900;letter-spacing:1.5px;margin-top:3px}
@@ -432,11 +432,11 @@
     font-size:40px;font-weight:900;background:rgba(255,255,255,.26);border:3px solid currentColor;
     box-shadow:inset 0 2px 12px rgba(255,255,255,.4), 0 6px 16px rgba(0,0,0,.22)}
   /* foto crua do jogador (recorte sem fundo), maior e sem moldura */
-  .fc-photo{width:100%;height:150px;display:flex;align-items:flex-end;justify-content:center;margin:2px 0 2px}
-  .fc-photo img{max-width:98%;max-height:150px;object-fit:contain;display:block;
+  .fc-photo{width:100%;height:158px;display:flex;align-items:flex-end;justify-content:center;margin:0 0 4px}
+  .fc-photo img{max-width:98%;max-height:158px;object-fit:contain;display:block;
     filter:drop-shadow(0 5px 10px rgba(0,0,0,.32))}
   .fc-name{font-size:22px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;position:relative}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;position:relative;margin-top:2px}
   .fc-line{height:2px;background:currentColor;opacity:.5;margin:10px 30px 12px;border-radius:2px}
   .fc-attrs{display:flex;justify-content:center;padding:0 8px;position:relative}
   .fc-col{flex:1;display:flex;flex-direction:column;gap:9px}
@@ -1325,10 +1325,10 @@ function openCard(id){
           ${sec?`<div class="fc-sep2"></div><div class="fc-secpos">${sec}</div>`:""}
         </div>
         <div class="fc-tiername">${tier.nome}</div>
-        <div class="fc-name">${esc(p.nome)}</div>
         ${playerPhoto(p)
           ? `<div class="fc-photo"><img src="${playerPhoto(p)}" alt=""></div>`
           : `<div class="fc-av">${initials(p.nome)}</div>`}
+        <div class="fc-name">${esc(p.nome)}</div>
         <div class="fc-line"></div>
         <div class="fc-attrs">${attrsHtml}</div>
         <div class="fc-foot">${p.gols||0} gol${(p.gols||0)===1?"":"s"} na temporada${artil?" · Artilheiro":""}</div>
