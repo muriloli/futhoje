@@ -348,7 +348,9 @@
   .tip{font-size:12.5px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.5;font-weight:600}
 
   /* ---------- Foto do jogador (substitui a inicial) ---------- */
-  .av-img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+  /* background-image: nunca vaza do ícone e é cortado pela borda arredondada */
+  .av-img{width:100%;height:100%;background-size:cover;background-position:center top;
+    background-repeat:no-repeat;border-radius:inherit;display:block}
   .photo-pick{display:flex;flex-direction:column;align-items:center;gap:12px}
   .photo-prev{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;overflow:hidden;
     font-weight:900;font-size:34px;background:var(--surf2);border:2px solid var(--line);color:var(--muted)}
@@ -422,9 +424,14 @@
   .fc-secpos{font-size:9.5px;font-weight:900;letter-spacing:.6px;opacity:.8;display:flex;flex-direction:column;gap:3px}
   .fc-tiername{position:absolute;top:34px;right:24px;font-size:9px;font-weight:900;letter-spacing:1.4px;
     opacity:.7;text-transform:uppercase;writing-mode:vertical-rl}
-  .fc-av{width:112px;height:112px;border-radius:50%;margin:14px auto 8px;display:grid;place-items:center;
+  /* fallback (sem foto): disco com a inicial — agora no plano do cartão (sem flutuar) */
+  .fc-av{width:112px;height:112px;border-radius:50%;margin:8px auto;display:grid;place-items:center;
     font-size:40px;font-weight:900;background:rgba(255,255,255,.26);border:3px solid currentColor;
-    box-shadow:inset 0 2px 12px rgba(255,255,255,.4), 0 6px 16px rgba(0,0,0,.22);transform:translateZ(34px)}
+    box-shadow:inset 0 2px 12px rgba(255,255,255,.4), 0 6px 16px rgba(0,0,0,.22)}
+  /* foto crua do jogador (recorte sem fundo), maior e sem moldura */
+  .fc-photo{width:100%;height:150px;display:flex;align-items:flex-end;justify-content:center;margin:2px 0 2px}
+  .fc-photo img{max-width:98%;max-height:150px;object-fit:contain;display:block;
+    filter:drop-shadow(0 5px 10px rgba(0,0,0,.32))}
   .fc-name{font-size:22px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;position:relative}
   .fc-line{height:2px;background:currentColor;opacity:.5;margin:10px 30px 12px;border-radius:2px}
@@ -919,10 +926,10 @@ const PHOTOS_URL = "/api/photos";
 const PHOTOS = (()=>{ try{ return JSON.parse(localStorage.getItem("quadra_photos"))||{}; }catch(e){ return {}; } })();
 function savePhotosLocal(){ try{ localStorage.setItem("quadra_photos", JSON.stringify(PHOTOS)); }catch(e){} }
 function playerPhoto(p){ return (p && PHOTOS[p.id]) || null; }
-// devolve <img> com a foto, ou o HTML da inicial como fallback
+// devolve o disco com a foto (background, não vaza), ou a inicial como fallback
 function avatarInner(p, fallbackHTML){
   const ph=playerPhoto(p);
-  return ph ? `<img class="av-img" src="${ph}" alt="">` : fallbackHTML;
+  return ph ? `<span class="av-img" style="background-image:url('${ph}')"></span>` : fallbackHTML;
 }
 async function pushPhoto(pid, data){
   try{ await fetch(PHOTOS_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({playerId:pid, data})}); }
@@ -1154,8 +1161,10 @@ function openCard(id){
           ${sec?`<div class="fc-sep2"></div><div class="fc-secpos">${sec}</div>`:""}
         </div>
         <div class="fc-tiername">${tier.nome}</div>
-        <div class="fc-av">${avatarInner(p, initials(p.nome))}</div>
         <div class="fc-name">${esc(p.nome)}</div>
+        ${playerPhoto(p)
+          ? `<div class="fc-photo"><img src="${playerPhoto(p)}" alt=""></div>`
+          : `<div class="fc-av">${initials(p.nome)}</div>`}
         <div class="fc-line"></div>
         <div class="fc-attrs">${attrsHtml}</div>
         <div class="fc-foot">${p.gols||0} gol${(p.gols||0)===1?"":"s"} na temporada${artil?" · Artilheiro":""}</div>
