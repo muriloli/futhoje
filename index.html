@@ -1008,8 +1008,12 @@ document.getElementById("sync-dot").addEventListener("click", pullFromServer);
 
 /* ---- Fotos dos jogadores (tabela própria via /api/photos) ---- */
 const PHOTOS_URL = "/api/photos";
-const PHOTOS = (()=>{ try{ return JSON.parse(localStorage.getItem("quadra_photos"))||{}; }catch(e){ return {}; } })();
-function savePhotosLocal(){ try{ localStorage.setItem("quadra_photos", JSON.stringify(PHOTOS)); }catch(e){} }
+// Fotos ficam SÓ em memória (buscadas do servidor a cada carregamento).
+// Guardá-las no localStorage estourava a cota (~5MB em UTF-16) e derrubava a
+// sessão de login. Limpamos o cache antigo para liberar espaço.
+const PHOTOS = {};
+try{ localStorage.removeItem("quadra_photos"); }catch(e){}
+function savePhotosLocal(){}   // no-op: fotos não vão mais para o localStorage
 function playerPhoto(p){ return (p && PHOTOS[p.id]) || null; }
 // devolve o disco com a foto (background, não vaza), ou a inicial como fallback
 function avatarInner(p, fallbackHTML){
