@@ -3,11 +3,13 @@
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "aero-bg.jpg", "use": "@vercel/static" },
+    { "src": "court.jpg", "use": "@vercel/static" },
     { "src": "api/state.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/", "dest": "/index.html" },
     { "src": "/aero-bg.jpg", "dest": "/aero-bg.jpg" },
+    { "src": "/court.jpg", "dest": "/court.jpg" },
     { "src": "/api/state", "methods": ["GET", "POST", "PUT"], "dest": "/api/state.js" }
   ]
 }

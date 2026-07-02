@@ -347,6 +347,19 @@
 
   .tip{font-size:12.5px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.5;font-weight:600}
 
+  /* ---------- Mini-quadra com jogadores (aba Times) ---------- */
+  .pitch{position:relative;width:100%;aspect-ratio:700/400;border-radius:12px;overflow:hidden;
+    margin:2px 0 10px;background:url('court.jpg') center/cover no-repeat;border:1px solid var(--line)}
+  .pmark{position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;z-index:1;user-select:none}
+  .pm-av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:12px;
+    color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);text-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .pm-name{font-size:9.5px;font-weight:800;color:#fff;background:rgba(0,0,0,.5);padding:1px 7px;border-radius:7px;
+    max-width:76px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pmark.vaga .pm-av{background:rgba(255,255,255,.18);border-style:dashed;font-size:10px}
+  .pmark.vaga .pm-name{opacity:.85;font-style:italic}
+  .pmark.sel .pm-av{outline:3px solid var(--accent);outline-offset:1px}
+  .pmark:active .pm-av{transform:scale(.9)}
+
   /* ---------- Botão de configurações ---------- */
   .cfg-btn{width:34px;height:34px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);
     display:grid;place-items:center;flex:none;align-self:center}
@@ -1185,6 +1198,9 @@ document.getElementById("btn-redraw").addEventListener("click", drawTeams);
 
 const FORMATION = {Goleiro:1, Fixo:1, Ala:2, "Pivô":1};
 const SEQ = ["Goleiro","Fixo","Ala","Ala","Pivô"];
+/* posição de cada slot na imagem da quadra (em %, casando com a perspectiva:
+   goleiro no gol de baixo → pivô perto do círculo central) */
+const PITCH_XY = [{x:50,y:86},{x:50,y:65},{x:27,y:47},{x:73,y:47},{x:50,y:27}];
 const TEAM_SIZE = 5;
 const LETTERS = ["A","B","C","D"];
 const ACCENTS = ()=>[cssvar("--teamA"),cssvar("--teamB"),"#C8FA4B","#FFC24B"];
@@ -1286,6 +1302,18 @@ function renderLineup(){
         <span class="plabel" style="background:#2a3742;color:var(--faint)">${POS[s.pos].ab}</span>
         <span class="mname">vaga · tocar p/ preencher</span></div>`;
     }).join("");
+    const marks=team.slots.map((s,si)=>{
+      const XY=PITCH_XY[si], col=cssvar(POS[s.pos].c), p=s.pid&&byId(s.pid);
+      const sc=(0.78+0.3*XY.y/100).toFixed(2);   // ícones do fundo um pouco menores (perspectiva)
+      const sel=(selected&&selected.kind==='starter'&&selected.t===ti&&selected.s===si)?" sel":"";
+      const st=`left:${XY.x}%;top:${XY.y}%;transform:translate(-50%,-50%) scale(${sc})`;
+      if(p) return `<div class="pmark clickable${sel}" data-t="${ti}" data-s="${si}" style="${st}">
+        <span class="pm-av" style="background:${col}">${initials(p.nome)}</span>
+        <span class="pm-name">${esc(p.nome.split(" ")[0])}</span></div>`;
+      return `<div class="pmark vaga clickable${sel}" data-t="${ti}" data-s="${si}" style="${st}">
+        <span class="pm-av" style="border-color:${col}">${POS[s.pos].ab}</span>
+        <span class="pm-name">vaga</span></div>`;
+    }).join("");
     const res=(team.reserves||[]).map(pid=>byId(pid)).filter(Boolean).sort((a,b)=>b.nivel-a.nivel);
     const resRows = res.length
       ? res.map(p=>{ const c=cssvar(POS[p.posicoes[0]].c);
@@ -1298,6 +1326,7 @@ function renderLineup(){
       <h3><span style="width:11px;height:11px;border-radius:3px;background:${acc[ti]};margin-right:8px"></span>${esc(DB.lineup.names[ti])}
         <button class="rename" data-rename="${ti}" aria-label="renomear time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></h3>
       <div class="tmeta">${filled}/5 titulares · força ${sum} · média N${avg}</div>
+      <div class="pitch">${marks}</div>
       ${rows}
       <div class="res-head" data-rzone="${ti}">Reservas · ${res.length}<small>tocar p/ enviar aqui</small></div>
       ${resRows}</div>`;
