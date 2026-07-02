@@ -393,9 +393,10 @@
   .fc-face{box-shadow:inset 0 0 0 4px rgba(255,255,255,.4)}
   .fc-face::before{content:"";position:absolute;inset:0;opacity:.07;
     background:repeating-linear-gradient(115deg,transparent 0 13px,currentColor 13px 14px)}
-  .fc-glare{z-index:2;opacity:0;transition:opacity .3s;mix-blend-mode:soft-light;
+  /* brilho ACIMA do conteúdo (Z alto) para varrer por cima do texto também */
+  .fc-glare{opacity:0;transition:opacity .3s;mix-blend-mode:soft-light;transform:translateZ(84px);
     background:radial-gradient(circle at var(--gx) var(--gy),rgba(255,255,255,.9),rgba(255,255,255,.15) 35%,transparent 62%)}
-  .fc-holo{z-index:1;opacity:0;transition:opacity .3s;mix-blend-mode:color-dodge;
+  .fc-holo{opacity:0;transition:opacity .3s;mix-blend-mode:color-dodge;transform:translateZ(78px);
     background-size:220% 220%;background-position:var(--hx) var(--hy);
     background-image:repeating-linear-gradient(115deg,
       rgba(255,0,132,.5) 0%,rgba(255,183,0,.5) 12%,rgba(0,255,144,.5) 24%,
@@ -1075,7 +1076,7 @@ function openCard(id){
         <div class="fc-name">${esc(p.nome)}</div>
         <div class="fc-line"></div>
         <div class="fc-attrs">${attrsHtml}</div>
-        <div class="fc-foot">⚽ ${p.gols||0} gol${(p.gols||0)===1?"":"s"} na temporada${artil?" · 👑 Artilheiro":""}</div>
+        <div class="fc-foot">${p.gols||0} gol${(p.gols||0)===1?"":"s"} na temporada${artil?" · Artilheiro":""}</div>
         <div class="fc-bline"></div>
       </div></div>
       <div class="fc-hint">passe o dedo p/ ver o brilho · toque fora p/ fechar</div>
