@@ -374,6 +374,49 @@
   .overall-line b{font-family:'JetBrains Mono';color:var(--accent);font-size:15px}
   .radar-wrap{margin:0 auto 8px;color:var(--muted)}
 
+  /* ---------- Cartão do jogador (estilo FUT, formato escudo) ---------- */
+  #cardview{position:fixed;inset:0;z-index:56;display:none;place-items:center;background:#000d;padding:24px}
+  #cardview.show{display:grid}
+  .fcard-wrap{filter:drop-shadow(0 18px 50px #000c);animation:cardin .32s cubic-bezier(.2,1.4,.4,1)}
+  @keyframes cardin{from{transform:scale(.72) rotate(-3deg);opacity:0}to{transform:none;opacity:1}}
+  /* silhueta de escudo FUT: entalhe no topo, ombros angulados, base em ponta */
+  .fcard,.fc-in{clip-path:polygon(50% 0%,57% 2.4%,91% 2.4%,100% 8%,100% 78%,96% 84%,56% 96.6%,50% 100%,44% 96.6%,4% 84%,0% 78%,0% 8%,9% 2.4%,43% 2.4%)}
+  .fcard{width:292px;padding:5px}          /* a moldura aparece nesta borda de 5px */
+  .fc-in{padding:28px 20px 44px;text-align:center;position:relative}
+  .fc-in::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.07;
+    background:repeating-linear-gradient(115deg,transparent 0 13px,currentColor 13px 14px)}
+  .fc-corner{position:absolute;top:30px;left:26px;text-align:center;line-height:1;z-index:1}
+  .fc-rating{font-family:'JetBrains Mono';font-weight:800;font-size:44px}
+  .fc-pos{font-size:14px;font-weight:900;letter-spacing:1.5px;margin-top:3px}
+  .fc-sep2{width:34px;height:1.5px;background:currentColor;opacity:.5;margin:8px auto}
+  .fc-secpos{font-size:9.5px;font-weight:900;letter-spacing:.6px;opacity:.8;display:flex;flex-direction:column;gap:3px}
+  .fc-tiername{position:absolute;top:34px;right:24px;font-size:9px;font-weight:900;letter-spacing:1.4px;
+    opacity:.7;text-transform:uppercase;writing-mode:vertical-rl}
+  .fc-av{width:112px;height:112px;border-radius:50%;margin:14px auto 8px;display:grid;place-items:center;
+    font-size:40px;font-weight:900;background:rgba(255,255,255,.26);border:3px solid currentColor;
+    box-shadow:inset 0 2px 12px rgba(255,255,255,.4), 0 6px 16px rgba(0,0,0,.22)}
+  .fc-name{font-size:22px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;position:relative}
+  .fc-line{height:2px;background:currentColor;opacity:.5;margin:10px 30px 12px;border-radius:2px}
+  .fc-attrs{display:flex;justify-content:center;padding:0 8px;position:relative}
+  .fc-col{flex:1;display:flex;flex-direction:column;gap:9px}
+  .fc-vdiv{width:1.5px;background:currentColor;opacity:.5;margin:2px 6px;border-radius:2px}
+  .fc-attr{font-size:16px;font-weight:900;letter-spacing:.5px;display:flex;gap:9px;justify-content:center;align-items:baseline}
+  .fc-attr b{font-family:'JetBrains Mono';font-size:19px}
+  .fc-foot{margin-top:14px;font-size:12.5px;font-weight:800;position:relative}
+  .fc-bline{width:46px;height:2px;background:currentColor;opacity:.5;margin:12px auto 0}
+  .fc-hint{margin-top:16px;text-align:center;color:#ffffff99;font-size:12px;font-weight:700}
+  /* raridades: moldura (.fcard) + corpo (.fc-in) */
+  .tier-bronze{background:linear-gradient(160deg,#E8A96B,#5F3714)}
+  .tier-bronze .fc-in{background:linear-gradient(165deg,#B97B42,#8C5528 55%,#5F3714);color:#FFE3C4}
+  .tier-prata{background:linear-gradient(160deg,#FFFFFF,#8E9AA6)}
+  .tier-prata .fc-in{background:linear-gradient(165deg,#E9EEF3,#C2CBD4 55%,#9AA6B2);color:#39434D}
+  .tier-ouro{background:linear-gradient(160deg,#FFF3C4,#A67C18)}
+  .tier-ouro .fc-in{background:linear-gradient(165deg,#F6E296,#E2BE56 50%,#BE9128);color:#4A3608}
+  .tier-esp{background:linear-gradient(160deg,#F0D585,#C9A13B)}
+  .tier-esp .fc-in{background:linear-gradient(170deg,#FFFFFF,#F6F1E5 55%,#EADFC4);color:#8A6A14}
+  .tier-esp .fc-av{background:linear-gradient(180deg,#fff,#F0E9D8)}
+
   /* ---------- Botão de configurações ---------- */
   .cfg-btn{width:34px;height:34px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);
     display:grid;place-items:center;flex:none;align-self:center}
@@ -626,11 +669,15 @@
       <button class="toggle on" id="f-active" role="switch" aria-checked="true"></button>
     </div>
   </div>
+  <button class="btn ghost block" id="btn-card" style="display:none;margin-bottom:10px">🃏 Ver cartão do jogador</button>
   <div class="sheet-actions">
     <button class="btn danger" id="btn-del" style="display:none">Excluir</button>
     <button class="btn primary block" id="btn-save">Salvar</button>
   </div>
 </div>
+
+<!-- Cartão do jogador -->
+<div id="cardview"></div>
 
 <!-- Sheet configurações -->
 <div class="sheet" id="sheet-settings">
@@ -968,6 +1015,57 @@ document.getElementById("f-skills").addEventListener("click",e=>{
   renderSkillsUI();
 });
 
+/* ---- cartão do jogador (estilo FUT) ---- */
+const TIERS=[
+  {min:4.5, cls:"tier-esp",    nome:"Ícone"},
+  {min:3.5, cls:"tier-ouro",   nome:"Ouro"},
+  {min:2.5, cls:"tier-prata",  nome:"Prata"},
+  {min:0,   cls:"tier-bronze", nome:"Bronze"}
+];
+const f99 = v => Math.min(99, Math.round(v*19.8));   // N1→20 … N5→99
+function openCard(id){
+  const p=byId(id); if(!p) return;
+  const ov=computeOverall(p);
+  const tier=TIERS.find(t=>ov>=t.min);
+  const prim=p.posicoes[0], gkOnly=prim==="Goleiro";
+  const base=Math.min(5,Math.max(1,Math.round(p.nivel)||3));
+  const sk=Object.assign(defaultSkills(base), p.skills||{});
+  const gk=Object.assign(defaultGk(base), p.gk||{});
+  const AB={vel:"VEL",fin:"FIN",pas:"PAS",dri:"DRI",mar:"MAR",fol:"FÔL",ref:"REF",sai:"SAÍ",rep:"REP"};
+  const attr=s=>`<div class="fc-attr"><b>${f99(gkOnly?gk[s.k]:sk[s.k])}</b>${AB[s.k]}</div>`;
+  const attrsHtml = gkOnly
+    ? `<div class="fc-col">${GK_SKILLS.map(attr).join("")}</div>`
+    : `<div class="fc-col">${LINE_SKILLS.slice(0,3).map(attr).join("")}</div>
+       <div class="fc-vdiv"></div>
+       <div class="fc-col">${LINE_SKILLS.slice(3).map(attr).join("")}</div>`;
+  const maxG=Math.max(0,...DB.players.map(x=>x.gols||0));
+  const artil=(p.gols||0)>0 && p.gols===maxG;
+  const sec=p.posicoes.slice(1).map(x=>`<span>${POS[x].ab}</span>`).join("");
+  document.getElementById("cardview").innerHTML=`
+    <div class="fcard-wrap">
+      <div class="fcard ${tier.cls}"><div class="fc-in">
+        <div class="fc-corner">
+          <div class="fc-rating">${f99(ov)}</div>
+          <div class="fc-pos">${POS[prim].ab}</div>
+          ${sec?`<div class="fc-sep2"></div><div class="fc-secpos">${sec}</div>`:""}
+        </div>
+        <div class="fc-tiername">${tier.nome}</div>
+        <div class="fc-av">${initials(p.nome)}</div>
+        <div class="fc-name">${esc(p.nome)}</div>
+        <div class="fc-line"></div>
+        <div class="fc-attrs">${attrsHtml}</div>
+        <div class="fc-foot">⚽ ${p.gols||0} gol${(p.gols||0)===1?"":"s"} na temporada${artil?" · 👑 Artilheiro":""}</div>
+        <div class="fc-bline"></div>
+      </div></div>
+      <div class="fc-hint">toque para fechar</div>
+    </div>`;
+  document.getElementById("cardview").classList.add("show");
+}
+document.getElementById("cardview").addEventListener("click",()=>{
+  document.getElementById("cardview").classList.remove("show");
+});
+document.getElementById("btn-card").addEventListener("click",()=>{ if(editingId) openCard(editingId); });
+
 function buildPosButtons(){
   document.getElementById("f-pos").innerHTML = Object.keys(POS).map(k=>{
     const col=cssvar(POS[k].c);
@@ -1021,6 +1119,7 @@ function openSheet(id){
     fPositions=["Ala"]; fLevel=3; fActive=true; delBtn.style.display="none";
     fSkills=defaultSkills(3); fGk=defaultGk(3);
   }
+  document.getElementById("btn-card").style.display = id ? "" : "none";
   paintPos(); paintLevel(); paintActive(); renderSkillsUI();
   scrim.classList.add("show"); sheet.classList.add("show");
 }
