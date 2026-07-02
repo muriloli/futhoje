@@ -360,6 +360,20 @@
   .pmark.sel .pm-av{outline:3px solid var(--accent);outline-offset:1px}
   .pmark:active .pm-av{transform:scale(.9)}
 
+  /* ---------- Árvore de habilidades ---------- */
+  .skcard{background:var(--surf);border:1px solid var(--line);border-radius:13px;padding:10px 14px;margin-bottom:10px}
+  .skcard h4{margin:0 0 4px;font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+  .skrow{display:flex;align-items:center;gap:8px;padding:5px 0}
+  .sklbl{flex:1;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .skval{font-family:'JetBrains Mono';font-weight:800;font-size:12px;width:12px;text-align:center;color:var(--accent)}
+  .skdots{display:flex;gap:5px}
+  .skdots button{width:25px;height:25px;border-radius:8px;background:var(--surf2);border:1px solid var(--line);padding:0}
+  .skdots button.on{background:var(--accent);border-color:var(--accent)}
+  .skdots button:active{transform:scale(.88)}
+  .overall-line{text-align:center;font-size:13px;font-weight:800;margin:2px 0 8px;color:var(--muted)}
+  .overall-line b{font-family:'JetBrains Mono';color:var(--accent);font-size:15px}
+  .radar-wrap{margin:0 auto 8px;color:var(--muted)}
+
   /* ---------- Botão de configurações ---------- */
   .cfg-btn{width:34px;height:34px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);
     display:grid;place-items:center;flex:none;align-self:center}
@@ -597,10 +611,14 @@
     <label>Posições · pode marcar mais de uma</label>
     <div class="seg" id="f-pos"></div>
   </div>
-  <div class="field">
+  <div class="field" id="f-level-field">
     <label>Nível de habilidade</label>
     <div class="lvlpick" id="f-level"></div>
     <div class="lvl-desc" id="f-leveldesc"></div>
+  </div>
+  <div class="field" id="f-skills-wrap" style="display:none">
+    <label>Habilidades</label>
+    <div id="f-skills"></div>
   </div>
   <div class="field">
     <div class="switch" id="f-active-wrap">
@@ -625,6 +643,12 @@
       <button data-theme="aero"><span style="font-size:20px">💧</span><span>Frutiger Aero</span></button>
     </div>
     <div class="lvl-desc" id="theme-desc"></div>
+  </div>
+  <div class="field">
+    <div class="switch">
+      <div class="lbl2">Árvore de habilidades<small>Avalie por atributos (velocidade, chute, drible...) no lugar da nota única. Vale para todos os aparelhos.</small></div>
+      <button class="toggle" id="cfg-skillmode" role="switch" aria-checked="false"></button>
+    </div>
   </div>
   <button class="btn primary block" id="btn-close-settings" style="margin-top:6px">Fechar</button>
 </div>
@@ -697,6 +721,42 @@ const LEVELS = [
     "Lidera taticamente e dita o ritmo da partida",
     "Completo como pivô e como fixo"]}
 ];
+
+/* ---- Árvore de habilidades ---- */
+const LINE_SKILLS = [
+  {k:"vel", nome:"Velocidade", ic:"⚡"},
+  {k:"fin", nome:"Finalização", ic:"🎯"},
+  {k:"pas", nome:"Passe", ic:"🎁"},
+  {k:"dri", nome:"Drible", ic:"🪄"},
+  {k:"mar", nome:"Marcação", ic:"🛡️"},
+  {k:"fol", nome:"Fôlego", ic:"🫁"}
+];
+const GK_SKILLS = [
+  {k:"ref", nome:"Reflexo", ic:"🧤"},
+  {k:"sai", nome:"Saída do gol", ic:"🏃"},
+  {k:"rep", nome:"Reposição", ic:"🎯"}
+];
+/* peso de cada atributo no nível geral, conforme a posição principal */
+const POS_WEIGHTS = {
+  Ala:{vel:.2, dri:.2, pas:.2, fin:.15, mar:.1, fol:.15},
+  "Pivô":{fin:.3, dri:.2, pas:.15, vel:.1, mar:.1, fol:.15},
+  Fixo:{mar:.3, pas:.2, fol:.15, vel:.15, fin:.1, dri:.1},
+  Goleiro:{ref:.5, sai:.25, rep:.25}
+};
+function defaultSkills(n){ const o={}; LINE_SKILLS.forEach(s=>o[s.k]=n); return o; }
+function defaultGk(n){ const o={}; GK_SKILLS.forEach(s=>o[s.k]=n); return o; }
+function overallFrom(prim, skills, gk){
+  if(prim==="Goleiro"){
+    const w=POS_WEIGHTS.Goleiro;
+    return Math.round(GK_SKILLS.reduce((a,s)=>a+(gk[s.k]||3)*w[s.k],0)*10)/10;
+  }
+  const w=POS_WEIGHTS[prim]||POS_WEIGHTS.Ala;
+  return Math.round(LINE_SKILLS.reduce((a,s)=>a+(skills[s.k]||3)*w[s.k],0)*10)/10;
+}
+function computeOverall(p){
+  const base=Math.round(p.nivel)||3;
+  return overallFrom(p.posicoes[0], p.skills||defaultSkills(base), p.gk||defaultGk(base));
+}
 
 let DB = load();
 function load(){
@@ -862,6 +922,51 @@ document.getElementById("player-list").addEventListener("click", e=>{
 /* ===================== SHEET ===================== */
 const scrim=document.getElementById("scrim"), sheet=document.getElementById("sheet");
 let editingId=null, fPositions=["Ala"], fLevel=3, fActive=true;
+let fSkills=defaultSkills(3), fGk=defaultGk(3);
+
+/* ---- radar (gráfico estilo FIFA) ---- */
+function radarSVG(items, vals, color){
+  const N=items.length, cx=85, cy=72, R=52;
+  const pt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/N;return [cx+r*Math.cos(a), cy+r*Math.sin(a)];};
+  const ring=r=>items.map((_,i)=>pt(i,r).map(n=>n.toFixed(1)).join(",")).join(" ");
+  let g="";
+  for(let lv=1;lv<=5;lv++) g+=`<polygon points="${ring(R*lv/5)}" fill="none" stroke="var(--line)" stroke-width="${lv===5?1.2:.7}"/>`;
+  g+=items.map((_,i)=>{const [x,y]=pt(i,R);return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width=".7"/>`;}).join("");
+  const poly=items.map((s,i)=>pt(i,R*Math.max(1,vals[s.k]||1)/5).map(n=>n.toFixed(1)).join(",")).join(" ");
+  const labels=items.map((s,i)=>{const [x,y]=pt(i,R+13);
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="8" font-weight="800" fill="currentColor" font-family="inherit">${s.nome}</text>`;}).join("");
+  return `<svg viewBox="0 0 170 150" style="width:100%;max-width:250px;display:block;margin:0 auto">
+    ${g}<polygon points="${poly}" fill="${color}40" stroke="${color}" stroke-width="1.6"/>${labels}</svg>`;
+}
+
+/* ---- interface das habilidades no sheet ---- */
+function currentOverall(){ return overallFrom(fPositions[0], fSkills, fGk); }
+function skRows(items, vals, tag){
+  return items.map(s=>`<div class="skrow"><span class="sklbl">${s.ic} ${s.nome}</span><span class="skval">${vals[s.k]}</span>
+    <span class="skdots">${[1,2,3,4,5].map(v=>`<button data-g="${tag}" data-sk="${s.k}" data-v="${v}" class="${vals[s.k]>=v?'on':''}" aria-label="${s.nome} nível ${v}"></button>`).join("")}</span></div>`).join("");
+}
+function renderSkillsUI(){
+  const wrap=document.getElementById("f-skills-wrap");
+  const lvlField=document.getElementById("f-level-field");
+  if(!DB.skillMode){ wrap.style.display="none"; lvlField.style.display=""; return; }
+  wrap.style.display=""; lvlField.style.display="none";
+  const isGK=fPositions.includes("Goleiro");
+  const hasLine=fPositions.some(p=>p!=="Goleiro");
+  const ov=currentOverall();
+  const gkOnly=isGK && !hasLine;
+  let html=`<div class="overall-line">Nível geral: <b>N${ov}</b> · ${LEVELS[Math.min(4,Math.max(0,Math.round(ov)-1))].nome}
+    <small style="color:var(--faint);font-weight:600">(peso pela posição ${esc(fPositions[0])})</small></div>`;
+  html+=`<div class="radar-wrap">${radarSVG(gkOnly?GK_SKILLS:LINE_SKILLS, gkOnly?fGk:fSkills, cssvar("--accent"))}</div>`;
+  if(hasLine) html+=`<div class="skcard"><h4>Linha</h4>${skRows(LINE_SKILLS,fSkills,'line')}</div>`;
+  if(isGK) html+=`<div class="skcard"><h4>Goleiro</h4>${skRows(GK_SKILLS,fGk,'gk')}</div>`;
+  document.getElementById("f-skills").innerHTML=html;
+}
+document.getElementById("f-skills").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-sk]"); if(!b) return;
+  const v=+b.dataset.v;
+  if(b.dataset.g==='gk') fGk[b.dataset.sk]=v; else fSkills[b.dataset.sk]=v;
+  renderSkillsUI();
+});
 
 function buildPosButtons(){
   document.getElementById("f-pos").innerHTML = Object.keys(POS).map(k=>{
@@ -895,7 +1000,7 @@ document.getElementById("f-pos").addEventListener("click",e=>{
   const pos=b.dataset.pos;
   if(fPositions.includes(pos)){ if(fPositions.length>1) fPositions=fPositions.filter(x=>x!==pos); }
   else fPositions.push(pos);
-  paintPos();
+  paintPos(); renderSkillsUI();
 });
 document.getElementById("f-active").addEventListener("click",()=>{ fActive=!fActive; paintActive(); });
 document.getElementById("f-level").addEventListener("click",e=>{const b=e.target.closest("button");if(b){fLevel=+b.dataset.l;paintLevel();}});
@@ -907,13 +1012,16 @@ function openSheet(id){
     const p = DB.players.find(x=>x.id===id);
     document.getElementById("sheet-title").textContent="Editar jogador";
     document.getElementById("f-name").value=p.nome;
-    fPositions=p.posicoes.slice(); fLevel=p.nivel; fActive=p.ativo!==false; delBtn.style.display="";
+    fPositions=p.posicoes.slice(); fLevel=Math.min(5,Math.max(1,Math.round(p.nivel)||3)); fActive=p.ativo!==false; delBtn.style.display="";
+    fSkills=Object.assign(defaultSkills(fLevel), p.skills||{});
+    fGk=Object.assign(defaultGk(fLevel), p.gk||{});
   }else{
     document.getElementById("sheet-title").textContent="Novo jogador";
     document.getElementById("f-name").value="";
     fPositions=["Ala"]; fLevel=3; fActive=true; delBtn.style.display="none";
+    fSkills=defaultSkills(3); fGk=defaultGk(3);
   }
-  paintPos(); paintLevel(); paintActive();
+  paintPos(); paintLevel(); paintActive(); renderSkillsUI();
   scrim.classList.add("show"); sheet.classList.add("show");
 }
 function closeSheet(){ scrim.classList.remove("show"); sheet.classList.remove("show"); }
@@ -934,8 +1042,26 @@ function paintThemePick(){
     ? "Céu azul, vidro e brilho — estética anos 2000 (Windows Vista/iPod)."
     : "Visual escuro sólido, o padrão do app.";
 }
+function paintSkillMode(){
+  const t=document.getElementById("cfg-skillmode");
+  t.classList.toggle("on", !!DB.skillMode);
+  t.setAttribute("aria-checked", !!DB.skillMode);
+}
+document.getElementById("cfg-skillmode").addEventListener("click", ()=>{
+  DB.skillMode=!DB.skillMode;
+  if(DB.skillMode){
+    // inicializa os atributos de quem já existe a partir do nível atual
+    DB.players.forEach(p=>{
+      const base=Math.min(5,Math.max(1,Math.round(p.nivel)||3));
+      if(!p.skills) p.skills=defaultSkills(base);
+      if(p.posicoes.includes("Goleiro") && !p.gk) p.gk=defaultGk(base);
+    });
+  }
+  save(); paintSkillMode(); renderSkillsUI();
+  toast(DB.skillMode ? "Árvore de habilidades ativada 🌳" : "Voltou à nota única de 1 a 5");
+});
 document.getElementById("btn-settings").addEventListener("click", ()=>{
-  paintThemePick(); scrim.classList.add("show"); settingsSheet.classList.add("show");
+  paintThemePick(); paintSkillMode(); scrim.classList.add("show"); settingsSheet.classList.add("show");
 });
 document.getElementById("btn-close-settings").addEventListener("click", ()=>{
   settingsSheet.classList.remove("show"); scrim.classList.remove("show");
@@ -955,10 +1081,19 @@ document.getElementById("btn-save").addEventListener("click", ()=>{
   if(!name){ toast("Coloque o nome do jogador"); return; }
   if(editingId){
     const p = DB.players.find(x=>x.id===editingId);
-    p.nome=name; p.posicoes=fPositions.slice(); p.nivel=fLevel; p.ativo=fActive;
+    p.nome=name; p.posicoes=fPositions.slice(); p.ativo=fActive;
+    if(DB.skillMode){
+      p.skills={...fSkills}; if(fPositions.includes("Goleiro")) p.gk={...fGk};
+      p.nivel=computeOverall(p);
+    } else p.nivel=fLevel;
     toast("Jogador atualizado");
   }else{
-    DB.players.push({id:uid(),nome:name,posicoes:fPositions.slice(),nivel:fLevel,gols:0,matchGoals:0,ativo:fActive,time:null});
+    const np={id:uid(),nome:name,posicoes:fPositions.slice(),nivel:fLevel,gols:0,matchGoals:0,ativo:fActive,time:null};
+    if(DB.skillMode){
+      np.skills={...fSkills}; if(fPositions.includes("Goleiro")) np.gk={...fGk};
+      np.nivel=computeOverall(np);
+    }
+    DB.players.push(np);
     toast("Jogador adicionado");
   }
   save(); renderPlayers(); refreshLineupAfterRoster(); closeSheet();
@@ -1325,7 +1460,7 @@ function renderLineup(){
     return `<div class="teamcard" data-team="${ti}" style="border-color:${acc[ti]}55">
       <h3><span style="width:11px;height:11px;border-radius:3px;background:${acc[ti]};margin-right:8px"></span>${esc(DB.lineup.names[ti])}
         <button class="rename" data-rename="${ti}" aria-label="renomear time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></h3>
-      <div class="tmeta">${filled}/5 titulares · força ${sum} · média N${avg}</div>
+      <div class="tmeta">${filled}/5 titulares · força ${Math.round(sum*10)/10} · média N${avg}</div>
       <div class="pitch">${marks}</div>
       ${rows}
       <div class="res-head" data-rzone="${ti}">Reservas · ${res.length}<small>tocar p/ enviar aqui</small></div>
@@ -1334,7 +1469,7 @@ function renderLineup(){
   out.innerHTML=html;
 
   const sums=DB.lineup.teams.map(teamSum);
-  const diff=Math.max(...sums)-Math.min(...sums);
+  const diff=Math.round((Math.max(...sums)-Math.min(...sums))*10)/10;
   const col=diff<=1?"#45E0B0":diff<=3?"#FFC24B":"#FF6B6B";
   const word=diff===0?"perfeitamente equilibrados":diff<=1?"bem equilibrados":diff<=3?"levemente desiguais":"desiguais";
   bar.style.display="block";
