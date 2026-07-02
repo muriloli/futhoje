@@ -982,6 +982,7 @@ async function pushToServer(){
   if(pushAgain){ pushAgain=false; clearTimeout(pushTimer); pushTimer=setTimeout(pushToServer,600); }
 }
 
+let pullRetry=null;
 async function pullFromServer(){
   try{
     const res = await fetch(API_URL, {cache:"no-store"});
@@ -1002,18 +1003,43 @@ async function pullFromServer(){
     setSyncState("ok");
   }catch(e){
     setSyncState("off");
+    clearTimeout(pullRetry); pullRetry=setTimeout(pullFromServer, 5000);   // tenta de novo
   }
 }
-document.getElementById("sync-dot").addEventListener("click", pullFromServer);
+document.getElementById("sync-dot").addEventListener("click", ()=>{ pullFromServer(); pullPhotos(); });
+window.addEventListener("online", ()=>{ pullFromServer(); pullPhotos(); pushToServer(); });
 
 /* ---- Fotos dos jogadores (tabela própria via /api/photos) ---- */
 const PHOTOS_URL = "/api/photos";
-// Fotos ficam SÓ em memória (buscadas do servidor a cada carregamento).
-// Guardá-las no localStorage estourava a cota (~5MB em UTF-16) e derrubava a
-// sessão de login. Limpamos o cache antigo para liberar espaço.
+// Fotos: cache no IndexedDB (cota grande, não disputa com a sessão de login
+// no localStorage). Limpamos o cache antigo do localStorage que estourava a cota.
 const PHOTOS = {};
 try{ localStorage.removeItem("quadra_photos"); }catch(e){}
-function savePhotosLocal(){}   // no-op: fotos não vão mais para o localStorage
+
+/* --- mini-wrapper de IndexedDB (chave→valor) --- */
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    let req; try{ req=indexedDB.open("quadra_db",1); }catch(e){ return rej(e); }
+    req.onupgradeneeded=()=>{ try{ req.result.createObjectStore("kv"); }catch(e){} };
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function idbSet(key,val){
+  try{ const db=await idbOpen(); await new Promise(r=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(val,key); tx.oncomplete=r; tx.onerror=r; tx.onabort=r; }); }catch(e){}
+}
+async function idbGet(key){
+  try{ const db=await idbOpen(); return await new Promise(r=>{ const rq=db.transaction("kv","readonly").objectStore("kv").get(key); rq.onsuccess=()=>r(rq.result); rq.onerror=()=>r(undefined); }); }catch(e){ return undefined; }
+}
+function savePhotosLocal(){ idbSet("photos", {...PHOTOS}); }
+// carrega as fotos do cache local (IndexedDB) e repinta — instantâneo e offline
+async function loadPhotosCache(){
+  const cached=await idbGet("photos");
+  if(cached && typeof cached==="object"){
+    Object.assign(PHOTOS, cached);
+    renderPlayers(); renderLineup(); renderLeaders();
+  }
+}
 function playerPhoto(p){ return (p && PHOTOS[p.id]) || null; }
 // devolve o disco com a foto (background, não vaza), ou a inicial como fallback
 function avatarInner(p, fallbackHTML){
@@ -1025,9 +1051,10 @@ async function pushPhoto(pid, data){
   try{ await fetch(PHOTOS_URL, {method:"POST",headers:{"Content-Type":"application/json","x-admin-password":adminPw},body:JSON.stringify({playerId:pid, data})}); }
   catch(e){ setSyncState("off"); }
 }
+let photoRetry=null;
 async function pullPhotos(){
   try{
-    const r=await fetch(PHOTOS_URL, {cache:"no-store"}); if(!r.ok) return;
+    const r=await fetch(PHOTOS_URL, {cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status);
     const {photos}=await r.json();
     if(photos && typeof photos==="object"){
       for(const k in PHOTOS) delete PHOTOS[k];
@@ -1035,7 +1062,7 @@ async function pullPhotos(){
       savePhotosLocal();
       renderPlayers(); renderLineup(); renderLeaders();   // repinta avatares
     }
-  }catch(e){}
+  }catch(e){ clearTimeout(photoRetry); photoRetry=setTimeout(pullPhotos, 5000); }   // tenta de novo
 }
 
 /* ===================== ACESSO (editor / convidado) ===================== */
@@ -2145,8 +2172,9 @@ function applyLoadedData(){
 buildPosButtons(); buildLevelButtons(); renderLevels();
 applyLoadedData();      // pinta imediatamente com o cache local (boot instantâneo)
 initAuth();             // define editor/convidado (e mostra login na 1ª vez)
+loadPhotosCache();      // fotos do cache local (IndexedDB) — aparecem na hora
 pullFromServer();       // busca a versão salva no banco e reconcilia em segundo plano
-pullPhotos();           // busca as fotos dos jogadores
+pullPhotos();           // atualiza as fotos do servidor e regrava o cache
 </script>
 </body>
 </html>
