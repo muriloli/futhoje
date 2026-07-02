@@ -493,10 +493,17 @@
   body.guest #btn-clearhist,
   body.guest .teamcard .rename,
   body.guest #edit-hint,
-  body.guest #skillmode-field{ display:none !important; }
+  body.guest #skillmode-field,
+  body.guest #btn-save,
+  body.guest #btn-del,
+  body.guest .photo-actions{ display:none !important; }
   body.guest .slot.clickable,
   body.guest .pmark{ pointer-events:none; }
-  body.guest .player{ cursor:default; }
+  /* perfil do jogador em modo leitura: mostra tudo, mas não deixa alterar */
+  body.guest #f-pos,
+  body.guest #f-level,
+  body.guest #f-skills,
+  body.guest #f-active{ pointer-events:none; opacity:.9; }
 
   /* ============================================================
      TEMA FRUTIGER AERO — céu azul, vidro translúcido e brilho gel
@@ -791,10 +798,7 @@
   <div class="field">
     <div class="switch">
       <div class="access-info" id="access-info">Modo: Convidado</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn ghost" id="btn-login2" style="padding:10px 14px;min-height:auto">Entrar como editor</button>
-        <button class="btn ghost" id="btn-logout" style="padding:10px 14px;min-height:auto;display:none">Sair</button>
-      </div>
+      <button class="btn ghost" id="btn-deslogar" style="padding:10px 16px;min-height:auto">🚪 Deslogar</button>
     </div>
   </div>
   <button class="btn primary block" id="btn-close-settings" style="margin-top:6px">Fechar</button>
@@ -1049,8 +1053,17 @@ function updateAuthUI(){
   el.innerHTML = canEdit
     ? "Modo: <span style='color:var(--accent)'>Editor</span><small>Você pode alterar tudo</small>"
     : "Modo: Convidado<small>Somente leitura</small>";
-  document.getElementById("btn-login2").style.display = canEdit ? "none" : "";
-  document.getElementById("btn-logout").style.display = canEdit ? "" : "none";
+}
+// volta para a tela de escolha (senha ou convidado)
+function logoutToLogin(){
+  adminPw="";
+  try{ localStorage.removeItem("quadra_session"); localStorage.removeItem("quadra_pw"); }catch(e){}
+  applyMode("guest"); updateAuthUI();
+  document.getElementById("sheet-settings").classList.remove("show");
+  document.getElementById("scrim").classList.remove("show");
+  document.getElementById("login-pw").value=""; document.getElementById("login-err").textContent="";
+  document.getElementById("login").classList.add("show");
+  renderPlayers(); renderLineup(); renderScorers();
 }
 function enterAs(mode){
   applyMode(mode); saveSession(mode);
@@ -1086,13 +1099,7 @@ document.getElementById("login-enter").addEventListener("click", async ()=>{
 });
 document.getElementById("login-pw").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("login-enter").click(); });
 document.getElementById("login-guest").addEventListener("click", ()=>enterAs("guest"));
-document.getElementById("btn-login2").addEventListener("click", ()=>{
-  document.getElementById("sheet-settings").classList.remove("show");
-  document.getElementById("scrim").classList.remove("show");
-  document.getElementById("login-pw").value=""; document.getElementById("login-err").textContent="";
-  document.getElementById("login").classList.add("show");
-});
-document.getElementById("btn-logout").addEventListener("click", ()=>{ adminPw=""; enterAs("guest"); toast("Você virou convidado (só leitura)"); });
+document.getElementById("btn-deslogar").addEventListener("click", logoutToLogin);
 
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const cssvar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1183,9 +1190,8 @@ function initials(name){
   return (parts[0][0]+(parts[1]?parts[1][0]:"")).toUpperCase();
 }
 document.getElementById("player-list").addEventListener("click", e=>{
-  if(!canEdit) return;   // convidado: só visualiza
   const ed = e.target.closest(".edit");
-  if(ed){ openSheet(ed.dataset.id); }
+  if(ed){ openSheet(ed.dataset.id); }   // convidado abre em modo leitura
 });
 
 /* ===================== SHEET ===================== */
@@ -1218,7 +1224,7 @@ function paintPhotoPrev(){
   if(fPhoto){ prev.innerHTML=`<img src="${fPhoto}" alt="">`; rm.style.display=""; }
   else{ prev.textContent = nm ? initials(nm) : "?"; rm.style.display="none"; }
 }
-document.getElementById("btn-photo").addEventListener("click",()=>document.getElementById("f-photo-input").click());
+document.getElementById("btn-photo").addEventListener("click",()=>{ if(!canEdit)return; document.getElementById("f-photo-input").click(); });
 document.getElementById("f-photo-input").addEventListener("change",e=>{
   const file=e.target.files&&e.target.files[0]; if(!file) return;
   fileToAvatar(file, dataUri=>{ fPhoto=dataUri; paintPhotoPrev(); });
@@ -1265,6 +1271,7 @@ function renderSkillsUI(){
   document.getElementById("f-skills").innerHTML=html;
 }
 document.getElementById("f-skills").addEventListener("click",e=>{
+  if(!canEdit) return;
   const b=e.target.closest("button[data-sk]"); if(!b) return;
   const v=+b.dataset.v;
   if(b.dataset.g==='gk') fGk[b.dataset.sk]=v; else fSkills[b.dataset.sk]=v;
@@ -1384,21 +1391,22 @@ function paintLevel(){
   document.getElementById("f-leveldesc").textContent = `Nível ${L.n} · ${L.nome} — ${L.desc}`;
 }
 document.getElementById("f-pos").addEventListener("click",e=>{
+  if(!canEdit) return;
   const b=e.target.closest("button"); if(!b) return;
   const pos=b.dataset.pos;
   if(fPositions.includes(pos)){ if(fPositions.length>1) fPositions=fPositions.filter(x=>x!==pos); }
   else fPositions.push(pos);
   paintPos(); renderSkillsUI();
 });
-document.getElementById("f-active").addEventListener("click",()=>{ fActive=!fActive; paintActive(); });
-document.getElementById("f-level").addEventListener("click",e=>{const b=e.target.closest("button");if(b){fLevel=+b.dataset.l;paintLevel();}});
+document.getElementById("f-active").addEventListener("click",()=>{ if(!canEdit) return; fActive=!fActive; paintActive(); });
+document.getElementById("f-level").addEventListener("click",e=>{if(!canEdit)return;const b=e.target.closest("button");if(b){fLevel=+b.dataset.l;paintLevel();}});
 
 function openSheet(id){
   editingId = id||null;
   const delBtn = document.getElementById("btn-del");
   if(id){
     const p = DB.players.find(x=>x.id===id);
-    document.getElementById("sheet-title").textContent="Editar jogador";
+    document.getElementById("sheet-title").textContent = canEdit ? "Editar jogador" : "Perfil do jogador";
     document.getElementById("f-name").value=p.nome;
     fPositions=p.posicoes.slice(); fLevel=Math.min(5,Math.max(1,Math.round(p.nivel)||3)); fActive=p.ativo!==false; delBtn.style.display="";
     fSkills=Object.assign(defaultSkills(fLevel), p.skills||{});
@@ -1412,6 +1420,7 @@ function openSheet(id){
     fPhoto=null;
   }
   document.getElementById("btn-card").style.display = id ? "" : "none";
+  document.getElementById("f-name").readOnly = !canEdit;   // convidado: nome só leitura
   paintPos(); paintLevel(); paintActive(); renderSkillsUI(); paintPhotoPrev();
   scrim.classList.add("show"); sheet.classList.add("show");
 }
