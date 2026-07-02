@@ -1,6 +1,7 @@
 // Função serverless do Vercel: GET carrega o estado, POST salva.
 // Rota pública: /api/state
 import { readState, writeState } from "../lib/state.js";
+import { isAdmin } from "../lib/auth.js";
 
 export default async function handler(req, res) {
   try {
@@ -11,6 +12,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST" || req.method === "PUT") {
+      if (!isAdmin(req)) return res.status(403).json({ error: "sem permissão para editar" });
       const body =
         typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body;
       if (!body || typeof body !== "object") {

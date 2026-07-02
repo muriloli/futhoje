@@ -463,6 +463,41 @@
   .cfg-btn svg{width:18px;height:18px;color:var(--muted)}
   .cfg-btn:active{transform:scale(.92)}
 
+  /* ---------- Login / acesso ---------- */
+  .login-screen{position:fixed;inset:0;z-index:80;display:none;place-items:center;padding:26px;
+    background:var(--bg)}
+  .login-screen.show{display:grid}
+  .login-box{width:100%;max-width:330px;text-align:center;animation:fade .3s ease}
+  .login-logo{width:92px;height:92px;border-radius:24px;margin:0 auto 18px;overflow:hidden;
+    box-shadow:0 10px 30px #0007, 0 0 0 1px #ffffff14 inset}
+  .login-logo img{width:100%;height:100%;object-fit:cover;display:block}
+  .login-box h2{font-size:26px;font-weight:900;letter-spacing:1px;margin:0 0 6px}
+  .login-box .sub{color:var(--muted);font-size:14px;margin:0 0 22px;font-weight:600;line-height:1.5}
+  .login-box input{width:100%;padding:15px;border-radius:14px;background:var(--surf);border:1px solid var(--line);
+    color:var(--text);font-weight:600;margin-bottom:12px;text-align:center}
+  .login-box input:focus{border-color:var(--accent)}
+  .login-box .btn{margin-bottom:10px}
+  .login-err{color:var(--teamB);font-size:13px;font-weight:700;min-height:18px;margin-top:2px}
+  .access-info{font-weight:800;font-size:14px}
+  .access-info small{display:block;color:var(--muted);font-weight:600;font-size:12px;margin-top:2px}
+
+  /* Convidado (só leitura): esconde tudo que edita */
+  body.guest .fab,
+  body.guest #draw-card,
+  body.guest .clock-ctrls,
+  body.guest .half-set,
+  body.guest #btn-nexthalf,
+  body.guest #btn-endmatch,
+  body.guest .gbtn,
+  body.guest .hdel,
+  body.guest #btn-clearhist,
+  body.guest .teamcard .rename,
+  body.guest #edit-hint,
+  body.guest #skillmode-field{ display:none !important; }
+  body.guest .slot.clickable,
+  body.guest .pmark{ pointer-events:none; }
+  body.guest .player{ cursor:default; }
+
   /* ============================================================
      TEMA FRUTIGER AERO — céu azul, vidro translúcido e brilho gel
      Ativado pela classe "aero" no <html> (Configurações ⚙)
@@ -625,7 +660,7 @@
     <!-- ===== TIMES ===== -->
     <section class="view" id="view-times">
       <div class="section-head"><h2>Times equilibrados</h2></div>
-      <div class="card" style="padding:15px;margin-bottom:14px">
+      <div class="card" id="draw-card" style="padding:15px;margin-bottom:14px">
         <div class="field" style="margin-bottom:14px">
           <label>Quantidade de times</label>
           <div class="seg" id="numteams" style="grid-template-columns:repeat(3,1fr)">
@@ -747,13 +782,35 @@
     </div>
     <div class="lvl-desc" id="theme-desc"></div>
   </div>
-  <div class="field">
+  <div class="field" id="skillmode-field">
     <div class="switch">
       <div class="lbl2">Árvore de habilidades<small>Avalie por atributos (velocidade, chute, drible...) no lugar da nota única. Vale para todos os aparelhos.</small></div>
       <button class="toggle" id="cfg-skillmode" role="switch" aria-checked="false"></button>
     </div>
   </div>
+  <div class="field">
+    <div class="switch">
+      <div class="access-info" id="access-info">Modo: Convidado</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn ghost" id="btn-login2" style="padding:10px 14px;min-height:auto">Entrar como editor</button>
+        <button class="btn ghost" id="btn-logout" style="padding:10px 14px;min-height:auto;display:none">Sair</button>
+      </div>
+    </div>
+  </div>
   <button class="btn primary block" id="btn-close-settings" style="margin-top:6px">Fechar</button>
+</div>
+
+<!-- Tela de login / acesso -->
+<div class="login-screen" id="login">
+  <div class="login-box">
+    <div class="login-logo"><img src="/icon.jpg" alt=""></div>
+    <h2>QUADRA</h2>
+    <p class="sub">Entre com a senha para gerenciar,<br>ou como convidado para apenas visualizar.</p>
+    <input type="password" id="login-pw" placeholder="Senha de editor" autocomplete="current-password" inputmode="text">
+    <button class="btn primary block" id="login-enter">Entrar</button>
+    <button class="btn ghost block" id="login-guest">👁️ Entrar como convidado</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
 </div>
 
 <!-- Confirm -->
@@ -888,12 +945,13 @@ function save(){
 }
 
 async function pushToServer(){
+  if(!canEdit) return;   // convidado nunca grava
   if(pushInFlight){ pushAgain=true; return; }
   pushInFlight=true;
   try{
     const res = await fetch(API_URL, {
       method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:{"Content-Type":"application/json","x-admin-password":adminPw},
       body: JSON.stringify(DB)
     });
     if(!res.ok) throw new Error("HTTP "+res.status);
@@ -941,7 +999,8 @@ function avatarInner(p, fallbackHTML){
   return ph ? `<span class="av-img" style="background-image:url('${ph}')"></span>` : fallbackHTML;
 }
 async function pushPhoto(pid, data){
-  try{ await fetch(PHOTOS_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({playerId:pid, data})}); }
+  if(!canEdit) return;   // convidado nunca grava
+  try{ await fetch(PHOTOS_URL, {method:"POST",headers:{"Content-Type":"application/json","x-admin-password":adminPw},body:JSON.stringify({playerId:pid, data})}); }
   catch(e){ setSyncState("off"); }
 }
 async function pullPhotos(){
@@ -956,6 +1015,70 @@ async function pullPhotos(){
     }
   }catch(e){}
 }
+
+/* ===================== ACESSO (editor / convidado) ===================== */
+let canEdit=false, adminPw="";
+function applyMode(mode){
+  canEdit = mode==="admin";
+  document.body.classList.toggle("guest", !canEdit);
+  document.body.classList.toggle("admin", canEdit);
+}
+function saveSession(mode){
+  try{
+    localStorage.setItem("quadra_session", mode);
+    if(mode==="admin") localStorage.setItem("quadra_pw", adminPw);
+    else localStorage.removeItem("quadra_pw");
+  }catch(e){}
+}
+function updateAuthUI(){
+  const el=document.getElementById("access-info"); if(!el) return;
+  el.innerHTML = canEdit
+    ? "Modo: <span style='color:var(--accent)'>Editor</span><small>Você pode alterar tudo</small>"
+    : "Modo: Convidado<small>Somente leitura</small>";
+  document.getElementById("btn-login2").style.display = canEdit ? "none" : "";
+  document.getElementById("btn-logout").style.display = canEdit ? "" : "none";
+}
+function enterAs(mode){
+  applyMode(mode); saveSession(mode);
+  document.getElementById("login").classList.remove("show");
+  updateAuthUI();
+  // repinta pra aplicar/retirar controles gerados dinamicamente
+  renderPlayers(); renderLineup(); renderScorers();
+}
+async function tryLogin(pw){
+  try{
+    const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pw})});
+    if(r.ok){ adminPw=pw; enterAs("admin"); return true; }
+  }catch(e){}
+  return false;
+}
+function requireEdit(){ if(!canEdit){ toast("Somente leitura — entre com a senha para editar."); return false; } return true; }
+function initAuth(){
+  let mode=null;
+  try{ mode=localStorage.getItem("quadra_session"); adminPw=localStorage.getItem("quadra_pw")||""; }catch(e){}
+  if(mode==="admin" && adminPw){ applyMode("admin"); updateAuthUI(); return; }
+  if(mode==="guest"){ applyMode("guest"); updateAuthUI(); return; }
+  applyMode("guest"); updateAuthUI();
+  document.getElementById("login").classList.add("show");   // primeira vez → pede acesso
+}
+document.getElementById("login-enter").addEventListener("click", async ()=>{
+  const pw=document.getElementById("login-pw").value;
+  const err=document.getElementById("login-err"); err.textContent="";
+  if(!pw){ err.textContent="Digite a senha."; return; }
+  err.textContent="Verificando...";
+  const ok=await tryLogin(pw);
+  if(ok){ document.getElementById("login-pw").value=""; err.textContent=""; toast("Bem-vindo, editor ✏️"); }
+  else err.textContent="Senha incorreta ou sem conexão.";
+});
+document.getElementById("login-pw").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("login-enter").click(); });
+document.getElementById("login-guest").addEventListener("click", ()=>enterAs("guest"));
+document.getElementById("btn-login2").addEventListener("click", ()=>{
+  document.getElementById("sheet-settings").classList.remove("show");
+  document.getElementById("scrim").classList.remove("show");
+  document.getElementById("login-pw").value=""; document.getElementById("login-err").textContent="";
+  document.getElementById("login").classList.add("show");
+});
+document.getElementById("btn-logout").addEventListener("click", ()=>{ adminPw=""; enterAs("guest"); toast("Você virou convidado (só leitura)"); });
 
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const cssvar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1046,6 +1169,7 @@ function initials(name){
   return (parts[0][0]+(parts[1]?parts[1][0]:"")).toUpperCase();
 }
 document.getElementById("player-list").addEventListener("click", e=>{
+  if(!canEdit) return;   // convidado: só visualiza
   const ed = e.target.closest(".edit");
   if(ed){ openSheet(ed.dataset.id); }
 });
@@ -1279,7 +1403,7 @@ function openSheet(id){
 }
 function closeSheet(){ scrim.classList.remove("show"); sheet.classList.remove("show"); }
 scrim.addEventListener("click", closeSheet);
-document.getElementById("fab").addEventListener("click", ()=>openSheet());
+document.getElementById("fab").addEventListener("click", ()=>{ if(!requireEdit())return; openSheet(); });
 
 /* ===================== CONFIGURAÇÕES ===================== */
 const settingsSheet = document.getElementById("sheet-settings");
@@ -1301,6 +1425,7 @@ function paintSkillMode(){
   t.setAttribute("aria-checked", !!DB.skillMode);
 }
 document.getElementById("cfg-skillmode").addEventListener("click", ()=>{
+  if(!requireEdit())return;
   DB.skillMode=!DB.skillMode;
   if(DB.skillMode){
     // inicializa os atributos de quem já existe a partir do nível atual
@@ -1330,6 +1455,7 @@ document.getElementById("theme-pick").addEventListener("click", e=>{
 });
 
 document.getElementById("btn-save").addEventListener("click", ()=>{
+  if(!requireEdit())return;
   const name = document.getElementById("f-name").value.trim();
   if(!name){ toast("Coloque o nome do jogador"); return; }
   let pid;
@@ -1358,6 +1484,7 @@ document.getElementById("btn-save").addEventListener("click", ()=>{
   save(); renderPlayers(); refreshLineupAfterRoster(); closeSheet();
 });
 document.getElementById("btn-del").addEventListener("click", ()=>{
+  if(!requireEdit())return;
   const p = DB.players.find(x=>x.id===editingId);
   askConfirm("Excluir jogador?", `“${p.nome}” será removido do elenco.`, ()=>{
     const rmId=editingId;
@@ -1389,17 +1516,19 @@ function startClock(){
 }
 function stopClock(){ running=false; clearInterval(timer); setStartLabel(); paintClock(); }
 function resetClock(){ stopClock(); secs=DB.halfMin*60; paintClock(); }
-document.getElementById("btn-start").addEventListener("click", startClock);
-document.getElementById("btn-reset").addEventListener("click", resetClock);
-document.getElementById("half-plus").addEventListener("click", ()=>{ if(DB.halfMin<60){DB.halfMin++; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();}} });
-document.getElementById("half-minus").addEventListener("click", ()=>{ if(DB.halfMin>1){DB.halfMin--; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();}} });
+document.getElementById("btn-start").addEventListener("click", ()=>{ if(!requireEdit())return; startClock(); });
+document.getElementById("btn-reset").addEventListener("click", ()=>{ if(!requireEdit())return; resetClock(); });
+document.getElementById("half-plus").addEventListener("click", ()=>{ if(!requireEdit())return; if(DB.halfMin<60){DB.halfMin++; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();}} });
+document.getElementById("half-minus").addEventListener("click", ()=>{ if(!requireEdit())return; if(DB.halfMin>1){DB.halfMin--; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();}} });
 
 document.getElementById("btn-nexthalf").addEventListener("click", ()=>{
+  if(!requireEdit())return;
   DB.period = DB.period>=2?1:DB.period+1; save();
   document.getElementById("period-pill").textContent = DB.period===1?"1º TEMPO":"2º TEMPO";
   resetClock(); toast(DB.period===1?"Reiniciado para o 1º tempo":"Vai pro 2º tempo");
 });
 document.getElementById("btn-endmatch").addEventListener("click", ()=>{
+  if(!requireEdit())return;
   if(!DB.lineup){ toast("Monte os times antes de encerrar"); return; }
   askConfirm("Encerrar e salvar?", "A partida vai para o Histórico e o placar zera para a próxima. O total de gols na temporada é mantido.", ()=>{
     saveMatchToHistory();
@@ -1486,6 +1615,7 @@ function renderHistory(){
   }).join("");
 }
 document.getElementById("history-out").addEventListener("click", e=>{
+  if(!requireEdit())return;
   const d=e.target.closest(".hdel"); if(!d) return;
   const id=d.dataset.id;
   askConfirm("Excluir do histórico?", "Este jogo será removido permanentemente.", ()=>{
@@ -1493,6 +1623,7 @@ document.getElementById("history-out").addEventListener("click", e=>{
   });
 });
 document.getElementById("btn-clearhist").addEventListener("click", ()=>{
+  if(!requireEdit())return;
   askConfirm("Limpar todo o histórico?", "Todos os jogos salvos serão apagados. Não dá para desfazer.", ()=>{
     DB.history=[]; save(); renderHistory(); toast("Histórico limpo");
   });
@@ -1682,6 +1813,7 @@ function renderScorers(){
   el.innerHTML = html || `<div class="empty"><p>Nenhum jogador nos times</p><small>Ative jogadores e sorteie na aba Times</small></div>`;
 }
 document.getElementById("scorer-list").addEventListener("click", e=>{
+  if(!requireEdit()) return;
   const b=e.target.closest(".mgoal"); if(!b) return;
   const p=DB.players.find(x=>x.id===b.dataset.id); if(!p) return;
   const d=+b.dataset.d;
@@ -1693,6 +1825,7 @@ document.getElementById("scorer-list").addEventListener("click", e=>{
 /* ===================== TIMES ===================== */
 let numTeams = DB.numTeams||2;
 document.getElementById("numteams").addEventListener("click", e=>{
+  if(!requireEdit())return;
   const b=e.target.closest("button"); if(!b) return;
   numTeams=+b.dataset.n; DB.numTeams=numTeams; save();
   document.querySelectorAll("#numteams button").forEach(x=>{
@@ -1700,8 +1833,8 @@ document.getElementById("numteams").addEventListener("click", e=>{
     x.style.background=on?cssvar("--accent"):""; x.style.borderColor=on?cssvar("--accent"):"";
   });
 });
-document.getElementById("btn-draw").addEventListener("click", drawTeams);
-document.getElementById("btn-redraw").addEventListener("click", drawTeams);
+document.getElementById("btn-draw").addEventListener("click", ()=>{ if(!requireEdit())return; drawTeams(); });
+document.getElementById("btn-redraw").addEventListener("click", ()=>{ if(!requireEdit())return; drawTeams(); });
 
 const FORMATION = {Goleiro:1, Fixo:1, Ala:2, "Pivô":1};
 const SEQ = ["Goleiro","Fixo","Ala","Ala","Pivô"];
@@ -1862,6 +1995,7 @@ function updateTeamLabels(){
 
 /* ---- edição por toque ---- */
 document.getElementById("teams-out").addEventListener("click", e=>{
+  if(!canEdit) return;   // convidado: só visualiza a escalação
   const rn=e.target.closest("[data-rename]"); if(rn){ openRename(+rn.dataset.rename); return; }
   const rv=e.target.closest("[data-reserve]"); if(rv){ handleTarget({type:'reserve',t:+rv.dataset.rt,pid:rv.dataset.reserve}); return; }
   const sl=e.target.closest("[data-t]"); if(sl){ handleTarget({type:'slot',t:+sl.dataset.t,s:+sl.dataset.s}); return; }
@@ -1911,6 +2045,7 @@ function openRename(i){
 }
 document.getElementById("pr-no").addEventListener("click",()=>document.getElementById("prompt").classList.remove("show"));
 document.getElementById("pr-yes").addEventListener("click",()=>{
+  if(!requireEdit())return;
   const v=document.getElementById("pr-input").value.trim();
   if(v && renameIdx!=null){ DB.lineup.names[renameIdx]=v; save(); renderLineup(); }
   document.getElementById("prompt").classList.remove("show");
@@ -1970,6 +2105,7 @@ function applyLoadedData(){
 
 buildPosButtons(); buildLevelButtons(); renderLevels();
 applyLoadedData();      // pinta imediatamente com o cache local (boot instantâneo)
+initAuth();             // define editor/convidado (e mostra login na 1ª vez)
 pullFromServer();       // busca a versão salva no banco e reconcilia em segundo plano
 pullPhotos();           // busca as fotos dos jogadores
 </script>

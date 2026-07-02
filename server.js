@@ -4,6 +4,7 @@
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { readState, writeState, readPhotos, writePhoto, deletePhoto } from "./lib/state.js";
+import { isAdmin, checkPassword } from "./lib/auth.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -28,6 +29,17 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://localhost:${PORT}`);
 
+    if (url.pathname === "/api/login") {
+      if (req.method === "POST") {
+        const body = JSON.parse((await readBody(req)) || "{}");
+        const ok = checkPassword(body.password);
+        res.writeHead(ok ? 200 : 401, { "Content-Type": "application/json; charset=utf-8" });
+        return res.end(JSON.stringify({ ok }));
+      }
+      res.writeHead(405);
+      return res.end();
+    }
+
     if (url.pathname === "/api/state") {
       if (req.method === "GET") {
         const data = await readState();
@@ -38,6 +50,10 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ data }));
       }
       if (req.method === "POST" || req.method === "PUT") {
+        if (!isAdmin(req)) {
+          res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+          return res.end(JSON.stringify({ error: "sem permissão para editar" }));
+        }
         const parsed = JSON.parse((await readBody(req)) || "{}");
         const result = await writeState(parsed);
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
@@ -57,6 +73,10 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ photos }));
       }
       if (req.method === "POST" || req.method === "PUT") {
+        if (!isAdmin(req)) {
+          res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+          return res.end(JSON.stringify({ error: "sem permissão para editar" }));
+        }
         const body = JSON.parse((await readBody(req)) || "{}");
         if (!body.playerId) {
           res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });

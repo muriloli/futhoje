@@ -6,7 +6,8 @@
     { "src": "court.jpg", "use": "@vercel/static" },
     { "src": "icon.jpg", "use": "@vercel/static" },
     { "src": "api/state.js", "use": "@vercel/node" },
-    { "src": "api/photos.js", "use": "@vercel/node" }
+    { "src": "api/photos.js", "use": "@vercel/node" },
+    { "src": "api/login.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/", "dest": "/index.html" },
@@ -14,6 +15,7 @@
     { "src": "/court.jpg", "dest": "/court.jpg" },
     { "src": "/icon.jpg", "dest": "/icon.jpg" },
     { "src": "/api/state", "methods": ["GET", "POST", "PUT"], "dest": "/api/state.js" },
-    { "src": "/api/photos", "methods": ["GET", "POST", "PUT"], "dest": "/api/photos.js" }
+    { "src": "/api/photos", "methods": ["GET", "POST", "PUT"], "dest": "/api/photos.js" },
+    { "src": "/api/login", "methods": ["POST"], "dest": "/api/login.js" }
   ]
 }

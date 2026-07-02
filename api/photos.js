@@ -2,6 +2,7 @@
 // GET  /api/photos            → { photos: { [playerId]: dataUri } }
 // POST /api/photos            → body { playerId, data }  (data=null remove)
 import { readPhotos, writePhoto, deletePhoto } from "../lib/state.js";
+import { isAdmin } from "../lib/auth.js";
 
 export default async function handler(req, res) {
   try {
@@ -12,6 +13,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST" || req.method === "PUT") {
+      if (!isAdmin(req)) return res.status(403).json({ error: "sem permissão para editar" });
       const body =
         typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body;
       const playerId = body && body.playerId;
