@@ -942,7 +942,7 @@ function radarSVG(items, vals, color){
 /* ---- interface das habilidades no sheet ---- */
 function currentOverall(){ return overallFrom(fPositions[0], fSkills, fGk); }
 function skRows(items, vals, tag){
-  return items.map(s=>`<div class="skrow"><span class="sklbl">${s.ic} ${s.nome}</span><span class="skval">${vals[s.k]}</span>
+  return items.map(s=>`<div class="skrow"><span class="sklbl">${s.nome}</span><span class="skval">${vals[s.k]}</span>
     <span class="skdots">${[1,2,3,4,5].map(v=>`<button data-g="${tag}" data-sk="${s.k}" data-v="${v}" class="${vals[s.k]>=v?'on':''}" aria-label="${s.nome} nível ${v}"></button>`).join("")}</span></div>`).join("");
 }
 function renderSkillsUI(){
