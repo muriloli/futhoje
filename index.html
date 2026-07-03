@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0E1217">
-<title>Quadra — Gerenciador de Futsal</title>
+<title>Futhoje</title>
 <link rel="icon" type="image/jpeg" href="/icon.jpg">
 <link rel="apple-touch-icon" href="/icon.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2040,10 +2040,13 @@ function drawTeams(){
     names: keepNames ? DB.lineup.names : Array.from({length:numTeams},(_,i)=>"Time "+LETTERS[i]),
     teams: raw.map(t=>({slots: SEQ.map(pos=>({pos, pid:(t.slots[pos].shift()||{}).id||null})), reserves:[]}))
   };
-  // sobras viram reservas, sempre para o time de menor força
+  // FASE 3 — BANCO: sobras viram reservas equilibrando os BANCOS entre si
+  // (o próximo reserva, do mais forte ao mais fraco, vai pro time de banco mais
+  // fraco). Assim, quando os reservas entram, os times seguem parelhos.
+  const reserveSum = t => (t.reserves||[]).reduce((a,pid)=>a+(byId(pid)?byId(pid).nivel:0),0);
   pool.filter(p=>!assigned.has(p.id)).sort((a,b)=>b.nivel-a.nivel).forEach(p=>{
     let best=0,min=Infinity;
-    lineup.teams.forEach((t,i)=>{ const tot=lineupTeamPower(t); if(tot<min){min=tot;best=i;} });
+    shuffle(lineup.teams.map((_,i)=>i)).forEach(i=>{ const rs=reserveSum(lineup.teams[i]); if(rs<min){min=rs;best=i;} });
     lineup.teams[best].reserves.push(p.id);
   });
   DB.lineup=lineup;
