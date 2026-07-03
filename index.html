@@ -1982,20 +1982,27 @@ function drawTeams(){
   const assigned = new Set();
   const positions = Object.keys(FORMATION).sort((a,b)=>
     pool.filter(p=>p.posicoes.includes(a)).length - pool.filter(p=>p.posicoes.includes(b)).length);
+  // FASE 1 — QUEM joga: seleciona os titulares de cada posição por rotação
+  // (quem sentou mais) + sorteio (variedade). Não decide o time ainda.
+  const selectedByPos = {};
   positions.forEach(pos=>{
     const slotsTotal = FORMATION[pos]*numTeams;
-    // QUEM entra é decidido por rotação (quem sentou mais) + sorteio (variedade);
-    // o nível só equilibra os times na hora de distribuir (menor soma).
     const cands = pool.filter(p=>!assigned.has(p.id) && p.posicoes.includes(pos))
                     .map(p=>({p, key:(p.benchCount||0)+Math.random()}))
                     .sort((a,b)=>b.key-a.key).map(x=>x.p);
-    for(let i=0;i<slotsTotal && cands.length;i++){
-      const avail = raw.filter(t=>t.need[pos]>0); if(!avail.length) break;
+    selectedByPos[pos] = cands.slice(0, slotsTotal);
+    selectedByPos[pos].forEach(p=>assigned.add(p.id));
+  });
+  // FASE 2 — EQUILÍBRIO: distribui os selecionados por NÍVEL (maior primeiro →
+  // time de menor força). Posições escassas (goleiro) primeiro, para o time
+  // sem goleiro receber jogadores de linha mais fortes e compensar.
+  positions.forEach(pos=>{
+    selectedByPos[pos].slice().sort((a,b)=>b.nivel-a.nivel).forEach(p=>{
+      const avail = raw.filter(t=>t.need[pos]>0); if(!avail.length) return;
       const minSum = Math.min(...avail.map(t=>t.sum));
       const t = shuffle(avail.filter(x=>x.sum===minSum))[0];
-      const p = cands.shift(); assigned.add(p.id);
       t.slots[pos].push(p); t.sum+=p.nivel; t.need[pos]--;
-    }
+    });
   });
   const keepNames = DB.lineup && DB.lineup.numTeams===numTeams && DB.lineup.names;
   const lineup = {
