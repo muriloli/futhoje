@@ -1,13 +1,14 @@
 // Função serverless do Vercel para as fotos dos jogadores.
 // GET  /api/photos            → { photos: { [playerId]: dataUri } }
 // POST /api/photos            → body { playerId, data }  (data=null remove)
-import { readPhotos, writePhoto, deletePhoto } from "../lib/state.js";
+import { readPhotoMeta, writePhoto, deletePhoto } from "../lib/state.js";
 import { isAdmin } from "../lib/auth.js";
 
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
-      const photos = await readPhotos();
+      // Retorna só a META (quem tem foto + versão), leve. A imagem em si vem de /api/photo.
+      const photos = await readPhotoMeta();
       res.setHeader("Cache-Control", "no-store");
       return res.status(200).json({ photos });
     }

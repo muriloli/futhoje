@@ -1084,38 +1084,21 @@ async function pullFromServer(){
 document.getElementById("sync-dot").addEventListener("click", ()=>{ pullFromServer(); pullPhotos(); });
 window.addEventListener("online", ()=>{ pullFromServer(); pullPhotos(); pushToServer(); });
 
-/* ---- Fotos dos jogadores (tabela própria via /api/photos) ---- */
+/* ---- Fotos dos jogadores (servidas individualmente por /api/photo) ----
+   Cada avatar carrega só a sua foto, sob demanda, e o navegador guarda em
+   cache. Evita o pacotão de vários MB que travava em celulares/conexões
+   fracas e o limite de resposta do Vercel. */
 const PHOTOS_URL = "/api/photos";
-// Fotos: cache no IndexedDB (cota grande, não disputa com a sessão de login
-// no localStorage). Limpamos o cache antigo do localStorage que estourava a cota.
-const PHOTOS = {};
 try{ localStorage.removeItem("quadra_photos"); }catch(e){}
-
-/* --- mini-wrapper de IndexedDB (chave→valor) --- */
-function idbOpen(){
-  return new Promise((res,rej)=>{
-    let req; try{ req=indexedDB.open("quadra_db",1); }catch(e){ return rej(e); }
-    req.onupgradeneeded=()=>{ try{ req.result.createObjectStore("kv"); }catch(e){} };
-    req.onsuccess=()=>res(req.result);
-    req.onerror=()=>rej(req.error);
-  });
+const PHOTO_META = {};    // { playerId: versão } — quem tem foto (cache-busting)
+const LOCAL_PHOTOS = {};  // fotos recém-enviadas nesta sessão (data URI) — aparecem na hora
+function playerPhoto(p){
+  if(!p) return null;
+  if(LOCAL_PHOTOS[p.id]) return LOCAL_PHOTOS[p.id];
+  const v=PHOTO_META[p.id];
+  return v ? `/api/photo?id=${encodeURIComponent(p.id)}&v=${encodeURIComponent(v)}` : null;
 }
-async function idbSet(key,val){
-  try{ const db=await idbOpen(); await new Promise(r=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(val,key); tx.oncomplete=r; tx.onerror=r; tx.onabort=r; }); }catch(e){}
-}
-async function idbGet(key){
-  try{ const db=await idbOpen(); return await new Promise(r=>{ const rq=db.transaction("kv","readonly").objectStore("kv").get(key); rq.onsuccess=()=>r(rq.result); rq.onerror=()=>r(undefined); }); }catch(e){ return undefined; }
-}
-function savePhotosLocal(){ idbSet("photos", {...PHOTOS}); }
-// carrega as fotos do cache local (IndexedDB) e repinta — instantâneo e offline
-async function loadPhotosCache(){
-  const cached=await idbGet("photos");
-  if(cached && typeof cached==="object"){
-    Object.assign(PHOTOS, cached);
-    renderPlayers(); renderLineup(); renderLeaders();
-  }
-}
-function playerPhoto(p){ return (p && PHOTOS[p.id]) || null; }
+function hasPhoto(id){ return !!(LOCAL_PHOTOS[id] || PHOTO_META[id]); }
 // devolve o disco com a foto (background, não vaza), ou a inicial como fallback
 function avatarInner(p, fallbackHTML){
   const ph=playerPhoto(p);
@@ -1130,12 +1113,11 @@ let photoRetry=null;
 async function pullPhotos(){
   try{
     const r=await fetch(PHOTOS_URL, {cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status);
-    const {photos}=await r.json();
+    const {photos}=await r.json();   // agora é a META { playerId: versão } (leve)
     if(photos && typeof photos==="object"){
-      for(const k in PHOTOS) delete PHOTOS[k];
-      Object.assign(PHOTOS, photos);
-      savePhotosLocal();
-      renderPlayers(); renderLineup(); renderLeaders();   // repinta avatares
+      for(const k in PHOTO_META) delete PHOTO_META[k];
+      Object.assign(PHOTO_META, photos);
+      renderPlayers(); renderLineup(); renderLeaders();   // repinta; cada foto vem sob demanda
     }
   }catch(e){ clearTimeout(photoRetry); photoRetry=setTimeout(pullPhotos, 5000); }   // tenta de novo
 }
@@ -1304,7 +1286,8 @@ document.getElementById("player-list").addEventListener("click", e=>{
 const scrim=document.getElementById("scrim"), sheet=document.getElementById("sheet");
 let editingId=null, fPositions=["Ala"], fLevel=3, fActive=true;
 let fSkills=defaultSkills(3), fGk=defaultGk(3);
-let fPhoto=null;   // data URI da foto em edição (ou null)
+let fPhoto=null;         // foto atual em edição: URL (existente), data URI (nova) ou null
+let fPhotoChanged=false; // o usuário trocou/removeu a foto neste sheet?
 
 /* ---- seletor de foto: redimensiona/recorta em quadrado e comprime ---- */
 function fileToAvatar(file, cb){
@@ -1343,10 +1326,10 @@ function paintPhotoPrev(){
 document.getElementById("btn-photo").addEventListener("click",()=>{ if(!canEdit)return; document.getElementById("f-photo-input").click(); });
 document.getElementById("f-photo-input").addEventListener("change",e=>{
   const file=e.target.files&&e.target.files[0]; if(!file) return;
-  fileToAvatar(file, dataUri=>{ fPhoto=dataUri; paintPhotoPrev(); });
+  fileToAvatar(file, dataUri=>{ fPhoto=dataUri; fPhotoChanged=true; paintPhotoPrev(); });
   e.target.value="";   // permite re-selecionar o mesmo arquivo
 });
-document.getElementById("btn-photo-rm").addEventListener("click",()=>{ fPhoto=null; paintPhotoPrev(); });
+document.getElementById("btn-photo-rm").addEventListener("click",()=>{ fPhoto=null; fPhotoChanged=true; paintPhotoPrev(); });
 document.getElementById("f-name").addEventListener("input",()=>{ if(!fPhoto) paintPhotoPrev(); });
 
 /* ---- radar (gráfico estilo FIFA) ---- */
@@ -1527,7 +1510,7 @@ function openSheet(id){
     fPositions=p.posicoes.slice(); fLevel=Math.min(5,Math.max(1,Math.round(p.nivel)||3)); fActive=p.ativo!==false; delBtn.style.display="";
     fSkills=Object.assign(defaultSkills(fLevel), p.skills||{});
     fGk=Object.assign(defaultGk(fLevel), p.gk||{});
-    fPhoto=PHOTOS[id]||null;
+    fPhoto=playerPhoto(p);
   }else{
     document.getElementById("sheet-title").textContent="Novo jogador";
     document.getElementById("f-name").value="";
@@ -1537,6 +1520,7 @@ function openSheet(id){
   }
   document.getElementById("btn-card").style.display = id ? "" : "none";
   document.getElementById("f-name").readOnly = !canEdit;   // convidado: nome só leitura
+  fPhotoChanged=false;
   paintPos(); paintLevel(); paintActive(); renderSkillsUI(); paintPhotoPrev();
   scrim.classList.add("show"); sheet.classList.add("show");
 }
@@ -1615,10 +1599,10 @@ document.getElementById("btn-save").addEventListener("click", ()=>{
     DB.players.push(np); pid=np.id;
     toast("Jogador adicionado");
   }
-  // foto: persiste na tabela própria só se mudou
-  if(fPhoto !== (PHOTOS[pid]||null)){
-    if(fPhoto){ PHOTOS[pid]=fPhoto; } else { delete PHOTOS[pid]; }
-    savePhotosLocal(); pushPhoto(pid, fPhoto);
+  // foto: persiste na tabela própria só se o usuário trocou/removeu
+  if(fPhotoChanged){
+    if(fPhoto){ LOCAL_PHOTOS[pid]=fPhoto; PHOTO_META[pid]=Date.now(); pushPhoto(pid, fPhoto); }
+    else { delete LOCAL_PHOTOS[pid]; delete PHOTO_META[pid]; pushPhoto(pid, null); }
   }
   save(); renderPlayers(); refreshLineupAfterRoster(); closeSheet();
 });
@@ -1628,7 +1612,7 @@ document.getElementById("btn-del").addEventListener("click", ()=>{
   askConfirm("Excluir jogador?", `“${p.nome}” será removido do elenco.`, ()=>{
     const rmId=editingId;
     DB.players = DB.players.filter(x=>x.id!==rmId);
-    if(PHOTOS[rmId]){ delete PHOTOS[rmId]; savePhotosLocal(); pushPhoto(rmId, null); }
+    if(hasPhoto(rmId)){ delete LOCAL_PHOTOS[rmId]; delete PHOTO_META[rmId]; pushPhoto(rmId, null); }
     save(); renderPlayers(); refreshLineupAfterRoster(); closeSheet(); toast("Jogador excluído");
   });
 });
@@ -2440,9 +2424,8 @@ function applyLoadedData(){
 buildPosButtons(); buildLevelButtons(); renderLevels();
 applyLoadedData();      // pinta imediatamente com o cache local (boot instantâneo)
 initAuth();             // define editor/convidado (e mostra login na 1ª vez)
-loadPhotosCache();      // fotos do cache local (IndexedDB) — aparecem na hora
 pullFromServer();       // busca a versão salva no banco e reconcilia em segundo plano
-pullPhotos();           // atualiza as fotos do servidor e regrava o cache
+pullPhotos();           // busca a lista de quem tem foto (cada imagem vem sob demanda)
 fetchPoll();            // status da enquete de habilidades
 
 /* ---- atualização automática dos dados na tela ---- */

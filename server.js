@@ -3,7 +3,7 @@
 // reaproveitando lib/state.js. Rode com:  npm start
 import http from "node:http";
 import { readFile } from "node:fs/promises";
-import { readState, writeState, readPhotos, writePhoto, deletePhoto } from "./lib/state.js";
+import { readState, writeState, readPhotoMeta, readPhotoOne, writePhoto, deletePhoto } from "./lib/state.js";
 import { isAdmin, checkPassword } from "./lib/auth.js";
 import { pollAction } from "./lib/poll.js";
 
@@ -71,9 +71,20 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
 
+    if (url.pathname === "/api/photo") {
+      const id = url.searchParams.get("id");
+      if (!id) { res.writeHead(400); return res.end("id obrigatório"); }
+      const data = await readPhotoOne(id);
+      if (!data) { res.writeHead(404); return res.end("sem foto"); }
+      const m = /^data:([^;]+);base64,(.*)$/s.exec(data);
+      if (!m) { res.writeHead(500); return res.end("formato inválido"); }
+      res.writeHead(200, { "Content-Type": m[1], "Cache-Control": "public, max-age=31536000, immutable" });
+      return res.end(Buffer.from(m[2], "base64"));
+    }
+
     if (url.pathname === "/api/photos") {
       if (req.method === "GET") {
-        const photos = await readPhotos();
+        const photos = await readPhotoMeta();
         res.writeHead(200, {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "no-store",

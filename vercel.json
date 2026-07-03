@@ -7,6 +7,7 @@
     { "src": "icon.jpg", "use": "@vercel/static" },
     { "src": "api/state.js", "use": "@vercel/node" },
     { "src": "api/photos.js", "use": "@vercel/node" },
+    { "src": "api/photo.js", "use": "@vercel/node" },
     { "src": "api/login.js", "use": "@vercel/node" },
     { "src": "api/poll.js", "use": "@vercel/node" }
   ],
@@ -17,6 +18,7 @@
     { "src": "/icon.jpg", "dest": "/icon.jpg" },
     { "src": "/api/state", "methods": ["GET", "POST", "PUT"], "dest": "/api/state.js" },
     { "src": "/api/photos", "methods": ["GET", "POST", "PUT"], "dest": "/api/photos.js" },
+    { "src": "/api/photo", "methods": ["GET"], "dest": "/api/photo.js" },
     { "src": "/api/login", "methods": ["POST"], "dest": "/api/login.js" },
     { "src": "/api/poll", "methods": ["GET", "POST"], "dest": "/api/poll.js" }
   ]
