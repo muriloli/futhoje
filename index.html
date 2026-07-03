@@ -2035,7 +2035,7 @@ function sanitizeLineup(){
   if(!DB.lineup) return;
   const ok=new Set(activePlayers().map(p=>p.id));
   DB.lineup.teams.forEach(t=>{
-    t.slots.forEach(s=>{ if(s.pid && !ok.has(s.pid)) s.pid=null; });
+    t.slots.forEach(s=>{ s.pos=normalizePos(s.pos); if(s.pid && !ok.has(s.pid)) s.pid=null; });
     t.reserves=(t.reserves||[]).filter(pid=>ok.has(pid));
   });
 }
@@ -2061,17 +2061,17 @@ function renderLineup(){
   const html = DB.lineup.teams.map((team,ti)=>{
     const sum=teamSum(team), filled=teamFilled(team), avg=filled?(sum/filled).toFixed(1):"0";
     const rows=team.slots.map((s,si)=>{
-      const col=cssvar(POS[s.pos].c), p=s.pid&&byId(s.pid);
+      const pos=normalizePos(s.pos), col=cssvar(POS[pos].c), p=s.pid&&byId(s.pid);
       const sel=(selected&&selected.kind==='starter'&&selected.t===ti&&selected.s===si)?" sel":"";
       if(p) return `<div class="slot clickable${sel}" data-t="${ti}" data-s="${si}">
-        <span class="plabel" style="background:${col}22;color:${col}">${POS[s.pos].ab}</span>
+        <span class="plabel" style="background:${col}22;color:${col}">${POS[pos].ab}</span>
         <span class="mname">${esc(p.nome)}</span><span class="mlvl">N${p.nivel}</span></div>`;
       return `<div class="slot clickable vaga${sel}" data-t="${ti}" data-s="${si}">
-        <span class="plabel" style="background:#2a3742;color:var(--faint)">${POS[s.pos].ab}</span>
+        <span class="plabel" style="background:#2a3742;color:var(--faint)">${POS[pos].ab}</span>
         <span class="mname">vaga · tocar p/ preencher</span></div>`;
     }).join("");
     const marks=team.slots.map((s,si)=>{
-      const XY=PITCH_XY[si], col=cssvar(POS[s.pos].c), p=s.pid&&byId(s.pid);
+      const XY=PITCH_XY[si], pos=normalizePos(s.pos), col=cssvar(POS[pos].c), p=s.pid&&byId(s.pid);
       const sc=(0.78+0.3*XY.y/100).toFixed(2);   // ícones do fundo um pouco menores (perspectiva)
       const sel=(selected&&selected.kind==='starter'&&selected.t===ti&&selected.s===si)?" sel":"";
       const st=`left:${XY.x}%;top:${XY.y}%;transform:translate(-50%,-50%) scale(${sc})`;
@@ -2079,15 +2079,15 @@ function renderLineup(){
         <span class="pm-av" style="background:${col}">${avatarInner(p, initials(p.nome))}</span>
         <span class="pm-name">${esc(p.nome.split(" ")[0])}</span></div>`;
       return `<div class="pmark vaga clickable${sel}" data-t="${ti}" data-s="${si}" style="${st}">
-        <span class="pm-av" style="border-color:${col}">${POS[s.pos].ab}</span>
+        <span class="pm-av" style="border-color:${col}">${POS[pos].ab}</span>
         <span class="pm-name">vaga</span></div>`;
     }).join("");
     const res=(team.reserves||[]).map(pid=>byId(pid)).filter(Boolean).sort((a,b)=>b.nivel-a.nivel);
     const resRows = res.length
-      ? res.map(p=>{ const c=cssvar(POS[p.posicoes[0]].c);
+      ? res.map(p=>{ const rp=normalizePos(p.posicoes[0]), c=cssvar(POS[rp].c);
           const sel=(selected&&selected.kind==='reserve'&&selected.t===ti&&selected.pid===p.id)?" sel":"";
           return `<div class="slot clickable reserve${sel}" data-rt="${ti}" data-reserve="${p.id}">
-            <span class="plabel" style="background:${c}22;color:${c}">${POS[p.posicoes[0]].ab}</span>
+            <span class="plabel" style="background:${c}22;color:${c}">${POS[rp].ab}</span>
             <span class="mname">${esc(p.nome)}</span><span class="mlvl">N${p.nivel}</span></div>`;}).join("")
       : `<div class="bench-note">Sem reservas neste time.</div>`;
     return `<div class="teamcard" data-team="${ti}" style="border-color:${acc[ti]}55">
