@@ -285,6 +285,10 @@
   .hscore-multi{text-align:center;font-size:15px;font-weight:600;color:var(--text)}
   .hscore-multi b{font-family:'JetBrains Mono';color:var(--accent);margin-left:2px}
   .hscorers{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:#c4ccd4;font-weight:600;line-height:1.5}
+  .hs-line{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin:3px 0}
+  .hs-dot{width:8px;height:8px;border-radius:3px;flex:none;align-self:center}
+  .hs-team{font-weight:900;white-space:nowrap}
+  .hscorers b{font-family:'JetBrains Mono';color:var(--accent)}
   .hscorers.muted{color:var(--faint)}
 
   /* ---------- Líderes ---------- */
@@ -1731,7 +1735,7 @@ function teamRoster(t){
 // monta o objeto da partida (só os 2 times EM QUADRA)
 function buildMatch(){
   const mu=currentMatchup();
-  const teams = mu.map(i=>({name:DB.lineup.names[i], score:teamScore(i), squad:teamRoster(DB.lineup.teams[i])}));
+  const teams = mu.map(i=>({name:DB.lineup.names[i], letter:LETTERS[i], score:teamScore(i), squad:teamRoster(DB.lineup.teams[i])}));
   const scorers = DB.players.filter(p=>(p.matchGoals||0)>0)
     .map(p=>({name:p.nome, goals:p.matchGoals, team:p.time}))
     .sort((a,b)=>b.goals-a.goals || a.name.localeCompare(b.name));
@@ -1829,9 +1833,23 @@ function renderHistory(){
            <span class="hnum">${m.teams[0].score}</span><span class="hx">×</span><span class="hnum">${m.teams[1].score}</span>
            <span class="ht ${m.teams[1].score>=m.teams[0].score?"lead":""}">${esc(m.teams[1].name)}</span></div>`
       : `<div class="hscore-multi">${m.teams.map(t=>`${esc(t.name)}<b>${t.score}</b>`).join(" &nbsp;·&nbsp; ")}</div>`;
-    const scorers = m.scorers.length
-      ? `<div class="hscorers">⚽ ${m.scorers.map(s=>esc(s.name)+(s.goals>1?" "+s.goals:"")).join(", ")}</div>`
-      : `<div class="hscorers muted">Partida sem gols</div>`;
+    const accs=[cssvar("--teamA"), cssvar("--teamB")];
+    let scorers;
+    if(!m.scorers.length){ scorers=`<div class="hscorers muted">Partida sem gols</div>`; }
+    else{
+      const seen=new Set();
+      const lines=m.teams.map((t,idx)=>{
+        const letter=t.letter||LETTERS[idx];
+        const its=m.scorers.filter(s=>s.team===letter);
+        its.forEach(s=>seen.add(s));
+        if(!its.length) return "";
+        return `<div class="hs-line"><span class="hs-dot" style="background:${accs[idx]}"></span><span class="hs-team" style="color:${accs[idx]}">${esc(t.name)}</span> ${its.map(s=>esc(s.name)+(s.goals>1?` <b>${s.goals}</b>`:"")).join(", ")}</div>`;
+      }).filter(Boolean);
+      // fallback: gols que não casaram com nenhum time (dados antigos)
+      const orphans=m.scorers.filter(s=>!seen.has(s));
+      if(orphans.length) lines.push(`<div class="hs-line">⚽ ${orphans.map(s=>esc(s.name)+(s.goals>1?` <b>${s.goals}</b>`:"")).join(", ")}</div>`);
+      scorers=`<div class="hscorers">${lines.join("")}</div>`;
+    }
     return `<div class="card hcard">
       <div class="hcard-top"><span class="hdate">${fmtMatchDate(m.date)}</span>${badge}
         <button class="hdel" data-id="${m.id}" aria-label="excluir jogo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button></div>
