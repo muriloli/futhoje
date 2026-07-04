@@ -3,7 +3,7 @@
 // reaproveitando lib/state.js. Rode com:  npm start
 import http from "node:http";
 import { readFile } from "node:fs/promises";
-import { readState, writeState, readPhotoMeta, readPhotoOne, writePhoto, deletePhoto } from "./lib/state.js";
+import { readState, writeState, readPhotoMeta, readPhotoOne, writePhoto, deletePhoto, readMatches, writeMatch, deleteMatch, clearMatches } from "./lib/state.js";
 import { isAdmin, checkPassword } from "./lib/auth.js";
 import { pollAction } from "./lib/poll.js";
 
@@ -66,6 +66,27 @@ const server = http.createServer(async (req, res) => {
         const result = await writeState(parsed);
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
         return res.end(JSON.stringify(result));
+      }
+      res.writeHead(405);
+      return res.end();
+    }
+
+    if (url.pathname === "/api/matches") {
+      if (req.method === "GET") {
+        const matches = await readMatches();
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+        return res.end(JSON.stringify({ matches }));
+      }
+      if (req.method === "POST") {
+        if (!isAdmin(req)) { res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" }); return res.end(JSON.stringify({ error: "sem permissão para editar" })); }
+        const body = JSON.parse((await readBody(req)) || "{}");
+        let r = { ok: true };
+        if (body.action === "add" && body.match) r = await writeMatch(body.match);
+        else if (body.action === "delete" && body.id) await deleteMatch(body.id);
+        else if (body.action === "clear") await clearMatches();
+        else { res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" }); return res.end(JSON.stringify({ error: "ação inválida" })); }
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        return res.end(JSON.stringify(r));
       }
       res.writeHead(405);
       return res.end();

@@ -9,7 +9,8 @@
     { "src": "api/photos.js", "use": "@vercel/node" },
     { "src": "api/photo.js", "use": "@vercel/node" },
     { "src": "api/login.js", "use": "@vercel/node" },
-    { "src": "api/poll.js", "use": "@vercel/node" }
+    { "src": "api/poll.js", "use": "@vercel/node" },
+    { "src": "api/matches.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/", "dest": "/index.html" },
@@ -20,6 +21,7 @@
     { "src": "/api/photos", "methods": ["GET", "POST", "PUT"], "dest": "/api/photos.js" },
     { "src": "/api/photo", "methods": ["GET"], "dest": "/api/photo.js" },
     { "src": "/api/login", "methods": ["POST"], "dest": "/api/login.js" },
-    { "src": "/api/poll", "methods": ["GET", "POST"], "dest": "/api/poll.js" }
+    { "src": "/api/poll", "methods": ["GET", "POST"], "dest": "/api/poll.js" },
+    { "src": "/api/matches", "methods": ["GET", "POST"], "dest": "/api/matches.js" }
   ]
 }
