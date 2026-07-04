@@ -719,7 +719,6 @@
         </div>
         <button class="btn primary block" id="btn-draw">⚖️ Sortear times</button>
         <button class="btn ghost block" id="btn-nextmatch" style="display:none;margin-top:9px">⏭️ Próxima partida · banco entra</button>
-        <button class="btn ghost block" id="btn-redraw" style="display:none;margin-top:9px">🔄 Sortear novamente</button>
       </div>
       <div id="edit-hint" class="edit-hint" style="display:none"></div>
       <div id="balance-bar" style="display:none"></div>
@@ -2111,7 +2110,6 @@ document.getElementById("numteams").addEventListener("click", e=>{
   });
 });
 document.getElementById("btn-draw").addEventListener("click", ()=>{ if(!requireEdit())return; drawTeams(); });
-document.getElementById("btn-redraw").addEventListener("click", ()=>{ if(!requireEdit())return; drawTeams(); });
 
 const FORMATION = {Goleiro:1, Fixo:1, Ala:2, "Pivô":1};
 const SEQ = ["Goleiro","Fixo","Ala","Ala","Pivô"];
@@ -2174,7 +2172,6 @@ function drawTeams(){
   DB.lineup=lineup;
   DB.matchup=[0,1];   // novo sorteio → confronto volta ao padrão A × B
   selected=null; syncTimes(); save();
-  document.getElementById("btn-redraw").style.display="";
   document.getElementById("btn-nextmatch").style.display="";
   renderLineup(); renderScorers(); paintMatchup(); paintScores(); updateTeamLabels();
 }
@@ -2645,8 +2642,8 @@ function applyLoadedData(){
   paintHalf(); if(!running) paintClock(); paintScores(); setStartLabel();
   document.getElementById("period-pill").textContent = DB.period===1?"1º TEMPO":"2º TEMPO";
   document.querySelectorAll("#numteams button").forEach(x=>{ const on=+x.dataset.n===numTeams; x.classList.toggle("on",on); x.style.background=on?cssvar("--accent"):""; x.style.borderColor=on?cssvar("--accent"):""; });
-  if(DB.lineup){ sanitizeLineup(); ensureAllAssigned(); syncTimes(); document.getElementById("btn-redraw").style.display=""; document.getElementById("btn-nextmatch").style.display=""; }
-  else{ document.getElementById("btn-redraw").style.display="none"; document.getElementById("btn-nextmatch").style.display="none"; }
+  if(DB.lineup){ sanitizeLineup(); ensureAllAssigned(); syncTimes(); document.getElementById("btn-nextmatch").style.display=""; }
+  else{ document.getElementById("btn-nextmatch").style.display="none"; }
   renderLineup(); renderScorers(); paintMatchup();
 }
 
