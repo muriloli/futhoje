@@ -1628,22 +1628,29 @@ function paintClock(){
 }
 function paintHalf(){ document.getElementById("half-val").textContent = DB.halfMin+" min"; }
 function setStartLabel(){ document.getElementById("btn-start").textContent = running? "Pausar":"Iniciar"; }
+// grava o estado do cronômetro no banco (só o editor) — convidados acompanham ao vivo
+function pushClock(){
+  if(!canEdit) return;
+  DB.clock = running ? {running:true, endsAt:Date.now()+secs*1000} : {running:false, secs:secs};
+  save();
+}
 function tick(){
-  if(secs<=0){ stopClock(); beep(); document.getElementById("clock").textContent="00:00"; toast("⏱️ Fim do tempo!"); return; }
+  if(secs<=0){ stopClock(); pushClock(); beep(); document.getElementById("clock").textContent="00:00"; toast("⏱️ Fim do tempo!"); return; }
   secs--; paintClock();
 }
 function startClock(){
-  if(running) { stopClock(); return; }
+  if(running) { stopClock(); pushClock(); return; }
   if(secs<=0) secs=DB.halfMin*60;
   ensureAudio();
   running=true; setStartLabel(); timer=setInterval(tick,1000); paintClock();
+  pushClock();
 }
 function stopClock(){ running=false; clearInterval(timer); setStartLabel(); paintClock(); }
-function resetClock(){ stopClock(); secs=DB.halfMin*60; paintClock(); }
+function resetClock(){ stopClock(); secs=DB.halfMin*60; paintClock(); pushClock(); }
 document.getElementById("btn-start").addEventListener("click", ()=>{ if(!requireEdit())return; startClock(); });
 document.getElementById("btn-reset").addEventListener("click", ()=>{ if(!requireEdit())return; resetClock(); });
-document.getElementById("half-plus").addEventListener("click", ()=>{ if(!requireEdit())return; if(DB.halfMin<60){DB.halfMin++; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();}} });
-document.getElementById("half-minus").addEventListener("click", ()=>{ if(!requireEdit())return; if(DB.halfMin>1){DB.halfMin--; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();}} });
+document.getElementById("half-plus").addEventListener("click", ()=>{ if(!requireEdit())return; if(DB.halfMin<60){DB.halfMin++; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();pushClock();}} });
+document.getElementById("half-minus").addEventListener("click", ()=>{ if(!requireEdit())return; if(DB.halfMin>1){DB.halfMin--; save(); paintHalf(); if(!running){secs=DB.halfMin*60;paintClock();pushClock();}} });
 
 document.getElementById("btn-nexthalf").addEventListener("click", ()=>{
   if(!requireEdit())return;
@@ -2451,7 +2458,18 @@ function applyLoadedData(){
   checkSeasonRollover();   // vira a temporada (arquiva + zera) se o período mudou
   // re-sincroniza variáveis de estado que derivam do DB
   numTeams = DB.numTeams||2;
-  if(!running) secs = DB.halfMin*60;
+  // cronômetro sincronizado: quem não é o editor acompanha o relógio dele ao vivo
+  const ck=DB.clock;
+  if(ck){
+    if(ck.running){
+      secs=Math.max(0, Math.round((ck.endsAt-Date.now())/1000));
+      if(!running && secs>0){ running=true; clearInterval(timer); timer=setInterval(tick,1000); }
+    }else{
+      if(running){ clearInterval(timer); running=false; }
+      if(typeof ck.secs==="number") secs=Math.max(0, ck.secs);
+    }
+    setStartLabel(); paintClock();
+  } else if(!running) secs = DB.halfMin*60;
   selected=null;
   // repinta tudo
   renderPlayers();
@@ -2476,6 +2494,11 @@ function anyOverlayOpen(){
 }
 // a cada 1 min: puxa o estado e o status da enquete (não interrompe edição/telas abertas)
 setInterval(()=>{ if(document.visibilityState!=="hidden" && !anyOverlayOpen()){ pullFromServer(); fetchPoll(); } }, 60000);
+// convidados na aba Partida: atualização rápida (5s) — placar, gols e cronômetro ao vivo
+setInterval(()=>{
+  if(!canEdit && document.visibilityState!=="hidden" && !anyOverlayOpen()
+     && document.getElementById("view-partida").classList.contains("active")) pullFromServer();
+}, 5000);
 // a cada 5 min: atualiza as fotos (são pesadas, não precisa toda hora)
 setInterval(()=>{ if(document.visibilityState!=="hidden" && !anyOverlayOpen()) pullPhotos(); }, 300000);
 // ao voltar para o app (reabrir a aba), atualiza na hora
