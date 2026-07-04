@@ -712,6 +712,7 @@
           </div>
         </div>
         <button class="btn primary block" id="btn-draw">⚖️ Sortear times</button>
+        <button class="btn ghost block" id="btn-nextmatch" style="display:none;margin-top:9px">⏭️ Próxima partida · banco entra</button>
         <button class="btn ghost block" id="btn-redraw" style="display:none;margin-top:9px">🔄 Sortear novamente</button>
       </div>
       <div id="edit-hint" class="edit-hint" style="display:none"></div>
@@ -1665,8 +1666,11 @@ document.getElementById("btn-endmatch").addEventListener("click", ()=>{
     saveMatchToHistory();
     awardGkPoints();
     awardResultPoints();
-    // rotação: quem ficou de reserva neste jogo conta +1 (justiça no próximo sorteio)
-    if(DB.lineup) DB.lineup.teams.forEach(t=>(t.reserves||[]).forEach(pid=>{ const p=byId(pid); if(p) p.benchCount=(p.benchCount||0)+1; }));
+    // rotação: reservas contam +1 banco; titulares contam +1 na sequência de jogos
+    if(DB.lineup) DB.lineup.teams.forEach(t=>{
+      t.slots.forEach(s=>{ const p=s.pid&&byId(s.pid); if(p) p.playStreak=(p.playStreak||0)+1; });
+      (t.reserves||[]).forEach(pid=>{ const p=byId(pid); if(p){ p.benchCount=(p.benchCount||0)+1; p.playStreak=0; } });
+    });
     DB.period=1;
     DB.players.forEach(p=>p.matchGoals=0);
     save(); resetClock();
@@ -2059,6 +2063,7 @@ function drawTeams(){
   DB.lineup=lineup;
   selected=null; syncTimes(); save();
   document.getElementById("btn-redraw").style.display="";
+  document.getElementById("btn-nextmatch").style.display="";
   renderLineup(); renderScorers();
 }
 function lineupTeamPower(t){
@@ -2066,6 +2071,50 @@ function lineupTeamPower(t){
   const r=(t.reserves||[]).reduce((a,pid)=>a+(byId(pid)?byId(pid).nivel:0),0);
   return s+r;
 }
+
+/* ---- Próxima partida: rotação DENTRO de cada time (banco entra, quem
+   jogou mais seguidas sai). Não mescla jogadores entre os times. ---- */
+function nextMatch(){
+  const L=DB.lineup;
+  if(!L){ toast("Sorteie os times primeiro"); return; }
+  if(DB.players.some(p=>(p.matchGoals||0)>0)){ toast("Encerre a partida atual antes de montar a próxima"); return; }
+  let moved=0;
+  L.teams.forEach(t=>{
+    // banco do time, priorizando quem está há mais tempo sentado
+    const resIds=(t.reserves||[]).filter(pid=>byId(pid))
+      .map(pid=>({pid, k:(byId(pid).benchCount||0)+Math.random()}))
+      .sort((a,b)=>b.k-a.k).map(x=>x.pid);
+    if(!resIds.length) return;
+    const occ=t.slots.map(s=>({s, p:s.pid&&byId(s.pid)})).filter(x=>x.p);
+    if(!occ.length) return;
+    // goleiro só sai se o banco do time tiver goleiro
+    const resHasGK=resIds.some(pid=>byId(pid).posicoes.includes("Goleiro"));
+    const benchable=occ.filter(x=>!(x.s.pos==="Goleiro" && !resHasGK));
+    const nOut=Math.min(resIds.length, benchable.length);
+    if(!nOut) return;
+    // sai quem jogou mais partidas seguidas (empate: sorteio)
+    const out=benchable.map(x=>({x, k:(x.p.playStreak||0)+Math.random()}))
+      .sort((a,b)=>b.k-a.k).slice(0,nOut).map(o=>o.x);
+    const entering=resIds.slice(0,nOut);
+    const leftoverBench=resIds.slice(nOut);
+    // libera as vagas e guarda quem saiu
+    const satOut=[];
+    out.forEach(x=>{ satOut.push(x.s.pid); x.s.pid=null; });
+    // entra preferindo vaga da própria posição
+    const pool=entering.slice();
+    out.forEach(x=>{
+      let idx=pool.findIndex(pid=>byId(pid).posicoes.includes(x.s.pos));
+      if(idx<0) idx=0;
+      x.s.pid=pool.splice(idx,1)[0];
+      moved++;
+    });
+    t.reserves=[...satOut, ...leftoverBench, ...pool];
+  });
+  if(!moved){ toast("Nenhum reserva para entrar"); return; }
+  selected=null; syncTimes(); save(); renderLineup(); renderScorers();
+  toast("Próxima partida montada — o banco entrou! 🔁");
+}
+document.getElementById("btn-nextmatch").addEventListener("click", ()=>{ if(!requireEdit())return; nextMatch(); });
 
 /* ---- estado da escalação ---- */
 function teamSum(team){ return team.slots.reduce((a,s)=>{const p=s.pid&&byId(s.pid);return a+(p?p.nivel:0);},0); }
@@ -2451,6 +2500,7 @@ function applyLoadedData(){
     if(p.gkPoints===undefined) p.gkPoints=0;
     if(p.gkGames===undefined) p.gkGames=0;
     if(p.benchCount===undefined) p.benchCount=0;
+    if(p.playStreak===undefined) p.playStreak=0;
     if(p.points===undefined) p.points=0;
     if(p.games===undefined) p.games=0;
   });
@@ -2476,8 +2526,8 @@ function applyLoadedData(){
   paintHalf(); if(!running) paintClock(); paintScores(); setStartLabel();
   document.getElementById("period-pill").textContent = DB.period===1?"1º TEMPO":"2º TEMPO";
   document.querySelectorAll("#numteams button").forEach(x=>{ const on=+x.dataset.n===numTeams; x.classList.toggle("on",on); x.style.background=on?cssvar("--accent"):""; x.style.borderColor=on?cssvar("--accent"):""; });
-  if(DB.lineup){ sanitizeLineup(); ensureAllAssigned(); syncTimes(); document.getElementById("btn-redraw").style.display=""; }
-  else{ document.getElementById("btn-redraw").style.display="none"; }
+  if(DB.lineup){ sanitizeLineup(); ensureAllAssigned(); syncTimes(); document.getElementById("btn-redraw").style.display=""; document.getElementById("btn-nextmatch").style.display=""; }
+  else{ document.getElementById("btn-redraw").style.display="none"; document.getElementById("btn-nextmatch").style.display="none"; }
   renderLineup(); renderScorers();
 }
 
