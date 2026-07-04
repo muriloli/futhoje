@@ -242,6 +242,11 @@
   .slot.sel .mname,.slot.sel .mlvl{color:var(--ink)}
   .slot.sel .plabel{background:#00000026!important;color:var(--ink)!important}
   .slot.drop{outline:1.5px dashed var(--accent);outline-offset:-2px}
+  /* destaque laranja: jogador com 2+ partidas seguidas (candidato a sair) */
+  .slot.hot{background:#FF7A4516;outline:1.5px dashed var(--warn);outline-offset:-2px}
+  .streak-tag{font-size:9px;font-weight:900;color:var(--warn);border:1px solid var(--warn);
+    padding:1px 5px;border-radius:6px;letter-spacing:.3px;flex:none;white-space:nowrap}
+  .pmark.hot .pm-av{outline:2.5px solid var(--warn);outline-offset:1px}
   .teamcard.drop{outline:1.5px dashed var(--accent);outline-offset:-2px}
   .teamcard h3 .rename{margin-left:auto;width:26px;height:26px;border-radius:8px;background:var(--surf2);
     display:grid;place-items:center;flex:none}
@@ -2159,9 +2164,11 @@ function renderLineup(){
     const rows=team.slots.map((s,si)=>{
       const pos=normalizePos(s.pos), col=cssvar(POS[pos].c), p=s.pid&&byId(s.pid);
       const sel=(selected&&selected.kind==='starter'&&selected.t===ti&&selected.s===si)?" sel":"";
-      if(p) return `<div class="slot clickable${sel}" data-t="${ti}" data-s="${si}">
+      // reserva selecionado → destaca em laranja quem já jogou 2+ seguidas
+      const hot=(selected&&selected.kind==='reserve'&&p&&(p.playStreak||0)>=2)?" hot":"";
+      if(p) return `<div class="slot clickable${sel}${hot}" data-t="${ti}" data-s="${si}">
         <span class="plabel" style="background:${col}22;color:${col}">${POS[pos].ab}</span>
-        <span class="mname">${esc(p.nome)}</span><span class="mlvl">N${p.nivel}</span></div>`;
+        <span class="mname">${esc(p.nome)}</span>${hot?`<span class="streak-tag">${p.playStreak} seguidas</span>`:""}<span class="mlvl">N${p.nivel}</span></div>`;
       return `<div class="slot clickable vaga${sel}" data-t="${ti}" data-s="${si}">
         <span class="plabel" style="background:#2a3742;color:var(--faint)">${POS[pos].ab}</span>
         <span class="mname">vaga · tocar p/ preencher</span></div>`;
@@ -2170,8 +2177,9 @@ function renderLineup(){
       const XY=PITCH_XY[si], pos=normalizePos(s.pos), col=cssvar(POS[pos].c), p=s.pid&&byId(s.pid);
       const sc=(0.78+0.3*XY.y/100).toFixed(2);   // ícones do fundo um pouco menores (perspectiva)
       const sel=(selected&&selected.kind==='starter'&&selected.t===ti&&selected.s===si)?" sel":"";
+      const hot=(selected&&selected.kind==='reserve'&&p&&(p.playStreak||0)>=2)?" hot":"";
       const st=`left:${XY.x}%;top:${XY.y}%;transform:translate(-50%,-50%) scale(${sc})`;
-      if(p) return `<div class="pmark clickable${sel}" data-t="${ti}" data-s="${si}" style="${st}">
+      if(p) return `<div class="pmark clickable${sel}${hot}" data-t="${ti}" data-s="${si}" style="${st}">
         <span class="pm-av" style="background:${col}">${avatarInner(p, initials(p.nome))}</span>
         <span class="pm-name">${esc(p.nome.split(" ")[0])}</span></div>`;
       return `<div class="pmark vaga clickable${sel}" data-t="${ti}" data-s="${si}" style="${st}">
@@ -2205,7 +2213,10 @@ function renderLineup(){
   bar.innerHTML=`<div class="balance-badge"><span class="dot" style="background:${col}"></span>
     <span>Titulares ${word} — diferença de <b>${diff}</b> ponto${diff===1?"":"s"} de habilidade</span></div>`;
 
-  if(selected){ hint.style.display="flex"; hint.innerHTML=`Toque em outro jogador p/ trocar, numa vaga p/ mover, ou em “Reservas” de um time p/ enviar pra lá.<span class="x" id="hint-x">✕</span>`; }
+  if(selected){
+    const hotNote = selected.kind==='reserve' ? " Em <b>laranja</b>: quem já jogou 2+ partidas seguidas (candidato a sair)." : "";
+    hint.style.display="flex"; hint.innerHTML=`Toque em outro jogador p/ trocar, numa vaga p/ mover, ou em “Reservas” p/ enviar pra lá.${hotNote}<span class="x" id="hint-x">✕</span>`;
+  }
   else hint.style.display="none";
   updateTeamLabels();
 }
