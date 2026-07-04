@@ -99,6 +99,7 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   .filters{display:flex;gap:7px;overflow-x:auto;padding:2px 0 14px;-ms-overflow-style:none;scrollbar-width:none}
+  .matchup-in{justify-content:center;padding:0 0 4px;margin-top:14px;margin-bottom:2px}
   .filters::-webkit-scrollbar{display:none}
   .chip{flex:none;padding:8px 14px;border-radius:999px;background:var(--surf);border:1px solid var(--line);
     font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
@@ -665,7 +666,6 @@
     <!-- ===== PARTIDA ===== -->
     <section class="view" id="view-partida">
       <div class="section-head"><h2>Cronômetro</h2><span class="meta" id="match-meta">2 tempos</span></div>
-      <div class="filters" id="matchup-bar" style="display:none"></div>
       <div class="score-board">
         <div class="period-tag"><span class="pill" id="period-pill">1º TEMPO</span></div>
         <div class="clock mono" id="clock">20:00</div>
@@ -679,6 +679,7 @@
           <span class="mono" id="half-val" style="min-width:54px;text-align:center">20 min</span>
           <button id="half-plus">+</button>
         </div>
+        <div class="filters matchup-in" id="matchup-bar" style="display:none"></div>
         <div class="versus">
           <div class="team-score">
             <div class="tlabel"><span class="tdot" style="background:var(--teamA)"></span><span id="labelA">TIME A</span></div>
