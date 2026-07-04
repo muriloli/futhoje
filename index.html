@@ -665,6 +665,7 @@
     <!-- ===== PARTIDA ===== -->
     <section class="view" id="view-partida">
       <div class="section-head"><h2>Cronômetro</h2><span class="meta" id="match-meta">2 tempos</span></div>
+      <div class="filters" id="matchup-bar" style="display:none"></div>
       <div class="score-board">
         <div class="period-tag"><span class="pill" id="period-pill">1º TEMPO</span></div>
         <div class="clock mono" id="clock">20:00</div>
@@ -746,7 +747,7 @@
       <div class="season-range" id="season-range"></div>
       <div class="podium" id="podium"></div>
       <div class="card" id="lead-list"></div>
-      <p class="tip"><b>Pontos</b>: vitória vale 3, empate 1 — pra todos do time (mesmo sem fazer gol) — <b>+1 por gol</b> marcado. Entram ao <b>Encerrar</b> a partida. Cada temporada dura 2 meses; ao virar, o ranking é arquivado nas abas acima.</p>
+      <p class="tip"><b>Pontos</b>: vitória vale <b>3</b> pros titulares e <b>1</b> pros reservas; empate vale 1 (titular). Todos ganham <b>+1 por gol</b> marcado. Entram ao <b>Encerrar</b> a partida. Cada temporada dura 2 meses; ao virar, o ranking é arquivado nas abas acima.</p>
     </section>
 
     <!-- ===== NÍVEIS ===== -->
@@ -1219,7 +1220,7 @@ function switchView(v){
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("active", s.id==="view-"+v));
   tabs.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b.dataset.v===v));
   document.getElementById("fab").style.display = (v==="elenco")?"grid":"none";
-  if(v==="partida"){ paintScores(); renderScorers(); }
+  if(v==="partida"){ paintMatchup(); paintScores(); renderScorers(); updateTeamLabels(); }
   if(v==="historico") renderHistory();
   if(v==="lideres"){ viewSeason=null; leadMode="pts"; renderLeaders(); }
 }
@@ -1671,11 +1672,19 @@ document.getElementById("btn-endmatch").addEventListener("click", ()=>{
     saveMatchToHistory();
     awardGkPoints();
     awardResultPoints();
-    // rotação: reservas contam +1 banco; titulares contam +1 na sequência de jogos
-    if(DB.lineup) DB.lineup.teams.forEach(t=>{
-      t.slots.forEach(s=>{ const p=s.pid&&byId(s.pid); if(p) p.playStreak=(p.playStreak||0)+1; });
-      (t.reserves||[]).forEach(pid=>{ const p=byId(pid); if(p){ p.benchCount=(p.benchCount||0)+1; p.playStreak=0; } });
-    });
+    // rotação: nos times EM QUADRA, titulares +1 na sequência e reservas +1 banco;
+    // times que ficaram de fora têm a sequência zerada (não jogaram)
+    if(DB.lineup){
+      const mu=currentMatchup();
+      DB.lineup.teams.forEach((t,i)=>{
+        if(mu.includes(i)){
+          t.slots.forEach(s=>{ const p=s.pid&&byId(s.pid); if(p) p.playStreak=(p.playStreak||0)+1; });
+          (t.reserves||[]).forEach(pid=>{ const p=byId(pid); if(p){ p.benchCount=(p.benchCount||0)+1; p.playStreak=0; } });
+        } else {
+          teamRoster(t).forEach(pid=>{ const p=byId(pid); if(p) p.playStreak=0; });
+        }
+      });
+    }
     DB.period=1;
     DB.players.forEach(p=>p.matchGoals=0);
     save(); resetClock();
@@ -1694,38 +1703,47 @@ function teamRoster(t){
 }
 function saveMatchToHistory(){
   if(!DB.lineup) return;
-  const teams = DB.lineup.teams.map((t,i)=>({name:DB.lineup.names[i], score:teamScore(i), squad:teamRoster(t)}));
+  const mu=currentMatchup();
+  // salva só os 2 times EM QUADRA (no modo 2 times, são exatamente A e B)
+  const teams = mu.map(i=>({name:DB.lineup.names[i], score:teamScore(i), squad:teamRoster(DB.lineup.teams[i])}));
   const scorers = DB.players.filter(p=>(p.matchGoals||0)>0)
     .map(p=>({name:p.nome, goals:p.matchGoals, team:p.time}))
     .sort((a,b)=>b.goals-a.goals || a.name.localeCompare(b.name));
   if(!DB.history) DB.history=[];
   DB.history.unshift({ id:uid(), date:new Date().toISOString(), numTeams:DB.lineup.numTeams, teams, scorers });
 }
-// Pontos: resultado (Vitória +3, Empate +1, Derrota +0) para TODOS do time, +1 por gol marcado.
+// Pontos: resultado (Vitória +3, Empate +1, Derrota +0) para TODOS do time em quadra, +1 por gol.
 function awardResultPoints(){
-  if(!DB.lineup || DB.lineup.numTeams<2) return;
-  const A=teamScore(0), B=teamScore(1);
+  if(!DB.lineup) return;
+  const mu=currentMatchup();
+  const A=teamScore(mu[0]), B=teamScore(mu[1]);
   const ptsA = A>B?3 : A===B?1 : 0;
   const ptsB = B>A?3 : A===B?1 : 0;
   const rec=[];
-  [[0,ptsA],[1,ptsB]].forEach(([ti,res])=>{
-    teamRoster(DB.lineup.teams[ti]).forEach(pid=>{ const p=byId(pid); if(p){
-      const g=p.matchGoals||0, total=res+g;   // resultado + bônus por gol
+  [[mu[0],ptsA],[mu[1],ptsB]].forEach(([ti,res])=>{
+    const t=DB.lineup.teams[ti];
+    const startersIds=new Set(t.slots.filter(s=>s.pid).map(s=>s.pid));
+    teamRoster(t).forEach(pid=>{ const p=byId(pid); if(p){
+      const isStarter=startersIds.has(pid);
+      // reserva pontua menos: vitória vale 1 (titular 3); empate 0 (titular 1)
+      const resPts = isStarter ? res : (res===3 ? 1 : 0);
+      const g=p.matchGoals||0, total=resPts+g;   // + bônus por gol
       p.points=(p.points||0)+total; p.games=(p.games||0)+1;
-      rec.push({id:pid, points:total, result:res, goals:g});
+      rec.push({id:pid, points:total, result:resPts, goals:g, reserve:!isStarter});
     } });
   });
   if(DB.history[0]) DB.history[0].pts=rec;   // guarda no jogo p/ referência/desconto
 }
-// Pontos de goleiro (só no modo 2 times): +0,5 por gol do time, -0,25 por sofrido, +1 se não sofreu.
+// Pontos de goleiro (confronto em quadra): +0,5 por gol do time, -0,25 por sofrido, +1 se não sofreu.
 function awardGkPoints(){
-  if(!DB.lineup || DB.lineup.numTeams!==2) return;
+  if(!DB.lineup) return;
+  const mu=currentMatchup();
   const gks=[];
-  for(let i=0;i<2;i++){
+  for(const i of mu){
     const gkSlot=DB.lineup.teams[i].slots.find(s=>s.pos==="Goleiro" && s.pid);
     if(!gkSlot) continue;
     const gk=byId(gkSlot.pid); if(!gk) continue;
-    const scored=teamScore(i), conceded=teamScore(i===0?1:0);
+    const scored=teamScore(i), conceded=teamScore(i===mu[0]?mu[1]:mu[0]);
     let pts=0.5*scored - 0.25*conceded + (conceded===0 ? 1 : 0);
     pts=Math.round(pts*100)/100;
     gk.gkPoints=Math.round(((gk.gkPoints||0)+pts)*100)/100;
@@ -1758,13 +1776,13 @@ function renderHistory(){
   }
   out.innerHTML = h.map(m=>{
     let badge="";
-    if(m.numTeams===2 && m.teams.length===2){
+    if(m.teams.length===2){
       const [A,B]=m.teams;
       badge = A.score===B.score
         ? `<span class="res-badge draw">Empate</span>`
         : `<span class="res-badge win">🏆 ${esc((A.score>B.score?A:B).name)}</span>`;
     }
-    const scoreLine = (m.numTeams===2 && m.teams.length===2)
+    const scoreLine = (m.teams.length===2)
       ? `<div class="hscore">
            <span class="ht ${m.teams[0].score>=m.teams[1].score?"lead":""}">${esc(m.teams[0].name)}</span>
            <span class="hnum">${m.teams[0].score}</span><span class="hx">×</span><span class="hnum">${m.teams[1].score}</span>
@@ -1901,7 +1919,7 @@ function renderLeaders(){
     const t = leadMode==="pts" ? (isCur?"Nenhuma partida encerrada ainda":"Sem pontos nesta temporada")
       : leadMode==="gk" ? (isCur?"Nenhum goleiro pontuou ainda":"Sem pontos de goleiro nesta temporada")
       : (isCur?"Ninguém marcou gol ainda":"Sem gols nesta temporada");
-    const s = leadMode==="pts" ? "Vitória 3, empate 1, +1 por gol — entram ao Encerrar uma partida"
+    const s = leadMode==="pts" ? "Vitória 3 (reserva 1), empate 1, +1 por gol — entram ao Encerrar"
       : leadMode==="gk" ? "O goleiro pontua ao encerrar uma partida de 2 times"
       : (isCur?"Marque os gols na aba Partida para montar a artilharia":"Nenhum gol foi registrado neste período");
     listEl.innerHTML=`<div class="empty">${svg}<p>${t}</p><small>${s}</small></div>`;
@@ -1953,8 +1971,38 @@ function teamScore(idx){
   return DB.players.filter(p=>p.ativo!==false && p.time===LETTERS[idx])
     .reduce((a,p)=>a+(p.matchGoals||0),0);
 }
+/* ---- confronto atual (quais 2 times estão em quadra) ---- */
+function currentMatchup(){
+  let m=DB.matchup;
+  const n=DB.lineup ? DB.lineup.numTeams : 2;
+  if(!Array.isArray(m)||m.length!==2||m[0]===m[1]||m[0]>=n||m[1]>=n||m[0]<0||m[1]<0) m=[0,1];
+  return m;
+}
+function paintMatchup(){
+  const bar=document.getElementById("matchup-bar");
+  if(!bar) return;
+  if(!DB.lineup || DB.lineup.numTeams<3){ bar.style.display="none"; return; }
+  const n=DB.lineup.numTeams, mu=currentMatchup();
+  const combos=[];
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) combos.push([i,j]);
+  bar.style.display="flex";
+  bar.innerHTML = `<span style="align-self:center;font-size:11px;font-weight:900;color:var(--muted);letter-spacing:.5px;flex:none;margin-right:2px">EM QUADRA:</span>` +
+    combos.map(([i,j])=>{
+      const on=(mu[0]===i&&mu[1]===j)?" on":"";
+      return `<button class="chip${on}" data-mi="${i}" data-mj="${j}">${esc(DB.lineup.names[i])} × ${esc(DB.lineup.names[j])}</button>`;
+    }).join("");
+}
+document.getElementById("matchup-bar").addEventListener("click", e=>{
+  const b=e.target.closest("[data-mi]"); if(!b) return;
+  if(!requireEdit()) return;
+  if(DB.players.some(p=>(p.matchGoals||0)>0)){ toast("Encerre a partida atual antes de trocar o confronto"); return; }
+  DB.matchup=[+b.dataset.mi, +b.dataset.mj];
+  save(); paintMatchup(); paintScores(); renderScorers(); updateTeamLabels();
+  toast("Confronto atualizado!");
+});
 function paintScores(){
-  DB.scoreA=teamScore(0); DB.scoreB=teamScore(1);
+  const mu=currentMatchup();
+  DB.scoreA=teamScore(mu[0]); DB.scoreB=teamScore(mu[1]);
   document.getElementById("scoreA").textContent=DB.scoreA;
   document.getElementById("scoreB").textContent=DB.scoreB;
 }
@@ -1965,8 +2013,10 @@ function renderScorers(){
   const starters=new Set();
   DB.lineup.teams.forEach(t=>t.slots.forEach(s=>{ if(s.pid)starters.add(s.pid); }));
   const acc=ACCENTS();
+  const mu=currentMatchup();
   let html="";
-  DB.lineup.teams.forEach((t,i)=>{
+  mu.forEach(i=>{   // só os dois times EM QUADRA marcam gols
+    const t=DB.lineup.teams[i]; if(!t) return;
     const members=DB.players.filter(p=>p.ativo!==false && p.time===LETTERS[i])
       .sort((a,b)=>(b.matchGoals||0)-(a.matchGoals||0) || a.nome.localeCompare(b.nome));
     if(!members.length) return;
@@ -2066,10 +2116,11 @@ function drawTeams(){
     lineup.teams[best].reserves.push(p.id);
   });
   DB.lineup=lineup;
+  DB.matchup=[0,1];   // novo sorteio → confronto volta ao padrão A × B
   selected=null; syncTimes(); save();
   document.getElementById("btn-redraw").style.display="";
   document.getElementById("btn-nextmatch").style.display="";
-  renderLineup(); renderScorers();
+  renderLineup(); renderScorers(); paintMatchup(); paintScores(); updateTeamLabels();
 }
 function lineupTeamPower(t){
   const s=t.slots.reduce((a,x)=>a+(x.pid&&byId(x.pid)?byId(x.pid).nivel:0),0);
@@ -2084,7 +2135,8 @@ function nextMatch(){
   if(!L){ toast("Sorteie os times primeiro"); return; }
   if(DB.players.some(p=>(p.matchGoals||0)>0)){ toast("Encerre a partida atual antes de montar a próxima"); return; }
   let moved=0;
-  L.teams.forEach(t=>{
+  // gira só os times do confronto atual (no modo 2 times = os dois)
+  currentMatchup().map(i=>L.teams[i]).filter(Boolean).forEach(t=>{
     // banco do time, priorizando quem está há mais tempo sentado
     const resIds=(t.reserves||[]).filter(pid=>byId(pid))
       .map(pid=>({pid, k:(byId(pid).benchCount||0)+Math.random()}))
@@ -2222,9 +2274,10 @@ function renderLineup(){
 }
 function updateTeamLabels(){
   const la=document.getElementById("labelA"), lb=document.getElementById("labelB");
-  if(DB.lineup && DB.lineup.numTeams===2){
-    la.textContent=(DB.lineup.names[0]||"Time A").toUpperCase();
-    lb.textContent=(DB.lineup.names[1]||"Time B").toUpperCase();
+  if(DB.lineup){
+    const mu=currentMatchup();
+    la.textContent=(DB.lineup.names[mu[0]]||"Time A").toUpperCase();
+    lb.textContent=(DB.lineup.names[mu[1]]||"Time B").toUpperCase();
   } else { la.textContent="TIME A"; lb.textContent="TIME B"; }
 }
 
@@ -2539,7 +2592,7 @@ function applyLoadedData(){
   document.querySelectorAll("#numteams button").forEach(x=>{ const on=+x.dataset.n===numTeams; x.classList.toggle("on",on); x.style.background=on?cssvar("--accent"):""; x.style.borderColor=on?cssvar("--accent"):""; });
   if(DB.lineup){ sanitizeLineup(); ensureAllAssigned(); syncTimes(); document.getElementById("btn-redraw").style.display=""; document.getElementById("btn-nextmatch").style.display=""; }
   else{ document.getElementById("btn-redraw").style.display="none"; document.getElementById("btn-nextmatch").style.display="none"; }
-  renderLineup(); renderScorers();
+  renderLineup(); renderScorers(); paintMatchup();
 }
 
 buildPosButtons(); buildLevelButtons(); renderLevels();
