@@ -698,6 +698,7 @@
         <div class="sort-seg" id="elenco-sort">
           <button data-sort="gols" class="on">⚽ Gols</button>
           <button data-sort="pontos">🏆 Pontos</button>
+          <button data-sort="nivel">⭐ Nível</button>
         </div>
       </div>
       <div class="card" id="player-list"></div>
@@ -1338,10 +1339,11 @@ function stars(n){
 function renderPlayers(){
   renderStats();
   const list = document.getElementById("player-list");
-  const isPts = elencoSort==="pontos";
+  const sortVal = p => elencoSort==="pontos" ? (p.points||0) : elencoSort==="nivel" ? (p.nivel||0) : (p.gols||0);
+  const sortLbl = elencoSort==="pontos" ? "pts" : elencoSort==="nivel" ? "nível" : "gols";
   let players = DB.players.slice().sort((a,b)=>
     (a.ativo===false)-(b.ativo===false)
-    || (isPts ? (b.points||0)-(a.points||0) : (b.gols||0)-(a.gols||0))
+    || sortVal(b)-sortVal(a)
     || (b.nivel||0)-(a.nivel||0) || a.nome.localeCompare(b.nome));
   if(filter!=="all") players = players.filter(p=>p.posicoes.includes(filter));
   if(players.length===0){
@@ -1368,7 +1370,7 @@ function renderPlayers(){
         <div class="pname">${esc(p.nome)} ${inact?'<span class="tag-inact">inativo</span>':''}</div>
         <div class="psub"><span class="posbadges">${badges}</span> ${stars(p.nivel)}</div>
       </div>
-      <div class="pgoals"><span class="goalcount">${isPts?(p.points||0):p.gols}</span><span class="glbl">${isPts?"pts":"gols"}</span></div>
+      <div class="pgoals"><span class="goalcount">${sortVal(p)}</span><span class="glbl">${sortLbl}</span></div>
     </div>`;
   }).join("");
 }
