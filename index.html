@@ -522,7 +522,17 @@
   .code-chip{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:11px 4px;text-align:center;
     font-family:'JetBrains Mono';font-weight:800;font-size:17px;letter-spacing:1px}
   .code-chip.code-used{opacity:.4;text-decoration:line-through}
-  body.guest #poll-admin-field{display:none !important}
+  body.guest #poll-admin-field,
+  body.guest #stats-admin-field{display:none !important}
+  /* editor manual de gols/pontos */
+  .se-head,.stat-edit-row{display:grid;grid-template-columns:1fr 58px 58px 58px;gap:6px;align-items:center}
+  .se-head{font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:0 2px 6px;text-align:center}
+  .se-head span:first-child{text-align:left}
+  .stat-edit-list{max-height:52vh;overflow-y:auto;margin:4px 0 2px}
+  .stat-edit-row{padding:5px 0;border-bottom:1px solid var(--line)}
+  .se-name{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat-edit-row input{width:100%;padding:8px 4px;border-radius:9px;background:var(--surf);border:1px solid var(--line);
+    color:var(--text);font-weight:800;text-align:center;font-family:'JetBrains Mono';font-size:14px}
 
   /* Convidado (só leitura): esconde tudo que edita */
   body.guest .fab,
@@ -840,6 +850,10 @@
       <div class="lbl2">Árvore de habilidades<small>Avalie por atributos (velocidade, chute, drible...) no lugar da nota única. Vale para todos os aparelhos.</small></div>
       <button class="toggle" id="cfg-skillmode" role="switch" aria-checked="false"></button>
     </div>
+  </div>
+  <div class="field" id="stats-admin-field">
+    <label>✏️ Ajuste manual</label>
+    <button class="btn ghost block" id="btn-stats-edit">Ajustar gols e pontos dos jogadores</button>
   </div>
   <div class="field" id="poll-admin-field">
     <label>🗳️ Enquete de habilidades</label>
@@ -2565,6 +2579,42 @@ document.getElementById("poll-admin").addEventListener("click", e=>{
 });
 function pollModal(html){ document.getElementById("poll-modal-box").innerHTML=html; document.getElementById("poll-modal").classList.add("show"); }
 function closePollModal(){ document.getElementById("poll-modal").classList.remove("show"); }
+
+/* ---- ajuste manual de gols/pontos (só editor) ---- */
+function openStatsEditor(){
+  if(!requireEdit()) return;
+  const rows = DB.players.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>`
+    <div class="stat-edit-row" data-id="${p.id}">
+      <span class="se-name">${esc(p.nome)}</span>
+      <input type="number" class="se-gols" value="${p.gols||0}" min="0" step="1" inputmode="numeric" aria-label="gols de ${esc(p.nome)}">
+      <input type="number" class="se-pts" value="${p.points||0}" step="1" inputmode="numeric" aria-label="pontos de ${esc(p.nome)}">
+      <input type="number" class="se-gk" value="${p.gkPoints||0}" step="1" inputmode="numeric" aria-label="pontos de goleiro de ${esc(p.nome)}">
+    </div>`).join("");
+  pollModal(`<h3>Ajustar gols e pontos</h3>
+    <p style="color:var(--muted);font-size:12px;margin:0 0 8px">Corrija manualmente (temporada atual). GK = pontos de goleiro.</p>
+    <div class="se-head"><span>Jogador</span><span>Gols</span><span>Pontos</span><span>GK</span></div>
+    <div class="stat-edit-list">${rows}</div>
+    <button class="btn primary block" id="se-save" style="margin-top:10px">Salvar alterações</button>
+    <button class="btn ghost block" id="se-cancel" style="margin-top:8px">Cancelar</button>`);
+  document.getElementById("se-cancel").addEventListener("click", closePollModal);
+  document.getElementById("se-save").addEventListener("click", saveStatsEdits);
+}
+function saveStatsEdits(){
+  if(!requireEdit()) return;
+  let changed=0;
+  document.querySelectorAll(".stat-edit-row").forEach(row=>{
+    const p=byId(row.dataset.id); if(!p) return;
+    const g=parseInt(row.querySelector(".se-gols").value,10);
+    const pt=parseFloat(row.querySelector(".se-pts").value);
+    const gk=parseFloat(row.querySelector(".se-gk").value);
+    if(!isNaN(g) && g!==(p.gols||0)){ p.gols=Math.max(0,g); changed++; }
+    if(!isNaN(pt) && pt!==(p.points||0)){ p.points=Math.round(pt*100)/100; if(!(p.games>0))p.games=1; changed++; }
+    if(!isNaN(gk) && gk!==(p.gkPoints||0)){ p.gkPoints=Math.round(gk*100)/100; if(!(p.gkGames>0))p.gkGames=1; changed++; }
+  });
+  save(); renderPlayers(); renderLeaders(); closePollModal();
+  toast(changed? "Ajustes salvos" : "Nada alterado");
+}
+document.getElementById("btn-stats-edit").addEventListener("click", ()=>{ if(!requireEdit())return; openStatsEditor(); });
 document.getElementById("poll-modal").addEventListener("click",e=>{ if(e.target.id==="poll-modal") closePollModal(); });
 async function pollAdminFetch(body){
   const r=await fetch("/api/poll",{method:"POST",headers:{"Content-Type":"application/json","x-admin-password":adminPw},body:JSON.stringify(body)});
