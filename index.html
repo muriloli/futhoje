@@ -333,6 +333,10 @@
     max-height:90vh;overflow-y:auto}
   .sheet.show{transform:translateY(0)}
   .grabber{width:40px;height:4px;border-radius:99px;background:var(--line);margin:8px auto 14px}
+  .sheet-close{position:absolute;top:12px;right:14px;width:34px;height:34px;border-radius:10px;
+    background:var(--surf2);border:1px solid var(--line);color:var(--muted);font-size:16px;font-weight:800;
+    display:grid;place-items:center;z-index:2}
+  .sheet-close:active{transform:scale(.9)}
   .sheet h2{margin:0 0 18px;font-size:20px;font-weight:900;text-align:center}
   .field{margin-bottom:16px}
   .field label{display:block;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
@@ -817,6 +821,7 @@
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet">
   <div class="grabber"></div>
+  <button class="sheet-close" id="sheet-close" aria-label="fechar">✕</button>
   <h2 id="sheet-title">Novo jogador</h2>
   <div class="field">
     <div class="photo-pick">
@@ -1626,6 +1631,7 @@ function openSheet(id){
   scrim.classList.add("show"); sheet.classList.add("show");
 }
 function closeSheet(){ scrim.classList.remove("show"); sheet.classList.remove("show"); }
+document.getElementById("sheet-close").addEventListener("click", closeSheet);
 scrim.addEventListener("click", closeSheet);
 document.getElementById("fab").addEventListener("click", ()=>{ if(!requireEdit())return; openSheet(); });
 
