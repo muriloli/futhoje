@@ -362,6 +362,19 @@
 
   .tip{font-size:12.5px;color:var(--faint);text-align:center;margin-top:18px;line-height:1.5;font-weight:600}
 
+  /* ---------- Alerta de fim de tempo ---------- */
+  .timeup{position:fixed;inset:0;z-index:90;display:none;place-items:center;padding:24px;
+    background:rgba(180,20,20,.28);backdrop-filter:blur(4px)}
+  .timeup.show{display:grid;animation:fade .2s ease}
+  .timeup-box{background:linear-gradient(160deg,#E23B3B,#9E1A1A);border:2px solid #ffffff44;border-radius:24px;
+    padding:30px 26px;max-width:360px;width:100%;text-align:center;color:#fff;
+    box-shadow:0 24px 70px #000a, 0 0 0 6px #ffffff10;animation:tuPulse 1s ease infinite}
+  @keyframes tuPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+  .timeup-emoji{font-size:56px;line-height:1}
+  .timeup-title{font-size:34px;font-weight:900;letter-spacing:1.5px;margin:6px 0 2px;text-shadow:0 2px 8px #0005}
+  .timeup-sub{font-size:14px;font-weight:700;opacity:.9}
+  .timeup .btn.primary{background:#fff;color:#9E1A1A}
+
   /* ---------- Foto do jogador (substitui a inicial) ---------- */
   /* background-image: nunca vaza do ícone e é cortado pela borda arredondada */
   .av-img{width:100%;height:100%;background-size:cover;background-position:center top;
@@ -927,6 +940,16 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Alerta de fim de tempo (aparece por cima de qualquer tela) -->
+<div class="timeup" id="timeup">
+  <div class="timeup-box">
+    <div class="timeup-emoji">⏱️</div>
+    <div class="timeup-title">SAIU, CABOU!</div>
+    <div class="timeup-sub">Fim do tempo</div>
+    <button class="btn primary block" id="timeup-ok" style="margin-top:18px">OK</button>
+  </div>
+</div>
 
 <!-- Prompt (renomear) -->
 <div class="confirm" id="prompt">
@@ -1685,8 +1708,14 @@ function pushClock(){
   DB.clock = running ? {running:true, endsAt:Date.now()+secs*1000} : {running:false, secs:secs};
   save();
 }
+function showTimeUp(){
+  try{ if(navigator.vibrate) navigator.vibrate([200,120,200,120,400]); }catch(e){}
+  document.getElementById("timeup").classList.add("show");
+}
+document.getElementById("timeup-ok").addEventListener("click", ()=>document.getElementById("timeup").classList.remove("show"));
+document.getElementById("timeup").addEventListener("click", e=>{ if(e.target.id==="timeup") document.getElementById("timeup").classList.remove("show"); });
 function tick(){
-  if(secs<=0){ stopClock(); pushClock(); beep(); document.getElementById("clock").textContent="00:00"; toast("⏱️ Fim do tempo!"); return; }
+  if(secs<=0){ stopClock(); pushClock(); beep(); document.getElementById("clock").textContent="00:00"; showTimeUp(); return; }
   secs--; paintClock();
 }
 function startClock(){
@@ -2714,7 +2743,7 @@ function applyLoadedData(){
   // re-sincroniza variáveis de estado que derivam do DB
   numTeams = DB.numTeams||2;
   // cronômetro sincronizado: quem não é o editor acompanha o relógio dele ao vivo
-  const ck=DB.clock;
+  const ck=DB.clock, wasRunning=running;
   if(ck){
     if(ck.running){
       secs=Math.max(0, Math.round((ck.endsAt-Date.now())/1000));
@@ -2722,6 +2751,8 @@ function applyLoadedData(){
     }else{
       if(running){ clearInterval(timer); running=false; }
       if(typeof ck.secs==="number") secs=Math.max(0, ck.secs);
+      // o editor parou o relógio no fim do tempo → mostra o alerta pra quem acompanhava
+      if(wasRunning && secs<=0) showTimeUp();
     }
     setStartLabel(); paintClock();
   } else if(!running) secs = DB.halfMin*60;
