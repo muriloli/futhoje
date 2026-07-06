@@ -750,7 +750,7 @@
       <div class="season-range" id="season-range"></div>
       <div class="podium" id="podium"></div>
       <div class="card" id="lead-list"></div>
-      <p class="tip"><b>Pontos</b>: vitória vale <b>3</b> pros titulares e <b>1</b> pros reservas; empate vale 1 (titular). Todos ganham <b>+1 por gol</b> marcado. Entram ao <b>Encerrar</b> a partida. Cada temporada dura 2 meses; ao virar, o ranking é arquivado nas abas acima.</p>
+      <p class="tip"><b>Pontos</b>: vitória vale <b>3</b> pra quem entrou em quadra (mesmo começando no banco) e <b>1</b> pro reserva que não entrou; empate vale 1. Todos ganham <b>+1 por gol</b>. <b>Goleiro</b>: vitória 3, empate 1, <b>+2 se não sofrer gol</b>. Entram ao <b>Encerrar</b>. Cada temporada dura <b>1 mês</b>; ao virar, o ranking é arquivado nas abas acima.</p>
     </section>
 
     <!-- ===== NÍVEIS ===== -->
@@ -1718,6 +1718,7 @@ document.getElementById("btn-endmatch").addEventListener("click", ()=>{
     }
     DB.period=1;
     DB.players.forEach(p=>p.matchGoals=0);
+    resetPlayed(); markPlayed();   // recomeça o rastreio: quem está em quadra abre a próxima
     save(); resetClock();
     document.getElementById("period-pill").textContent="1º TEMPO";
     paintScores(); renderScorers();
@@ -1726,6 +1727,18 @@ document.getElementById("btn-endmatch").addEventListener("click", ()=>{
   });
 });
 
+/* ---- rastreio de quem ENTROU EM QUADRA na partida atual ----
+   Reserva que entrou (mesmo voltando ao banco) conta como participante
+   e leva os pontos cheios; quem nunca entrou pontua menos. */
+function resetPlayed(){ DB.playedIds={}; }
+function markPlayed(){
+  if(!DB.lineup) return;
+  if(!DB.playedIds) DB.playedIds={};
+  currentMatchup().forEach(i=>{
+    const t=DB.lineup.teams[i]; if(!t) return;
+    t.slots.forEach(s=>{ if(s.pid) DB.playedIds[s.pid]=true; });
+  });
+}
 // jogadores de um time (titulares + reservas)
 function teamRoster(t){
   const ids=[]; t.slots.forEach(s=>{ if(s.pid) ids.push(s.pid); });
@@ -1749,20 +1762,23 @@ function awardResultPoints(match){
   const ptsA = A>B?3 : A===B?1 : 0;
   const ptsB = B>A?3 : A===B?1 : 0;
   const rec=[];
+  const played=DB.playedIds||{};
   [[mu[0],ptsA],[mu[1],ptsB]].forEach(([ti,res])=>{
     const t=DB.lineup.teams[ti];
     const startersIds=new Set(t.slots.filter(s=>s.pid).map(s=>s.pid));
     teamRoster(t).forEach(pid=>{ const p=byId(pid); if(p){
-      const isStarter=startersIds.has(pid);
-      const resPts = isStarter ? res : (res===3 ? 1 : 0);   // reserva pontua menos
-      const g=p.matchGoals||0, total=resPts+g;               // + bônus por gol
+      // participou = está em quadra agora OU entrou em algum momento da partida
+      const participated = startersIds.has(pid) || !!played[pid];
+      const resPts = participated ? res : (res===3 ? 1 : 0);   // quem nunca entrou pontua menos
+      const g=p.matchGoals||0, total=resPts+g;                 // + bônus por gol
       p.points=(p.points||0)+total; p.games=(p.games||0)+1;
-      rec.push({id:pid, points:total, result:resPts, goals:g, reserve:!isStarter});
+      rec.push({id:pid, points:total, result:resPts, goals:g, reserve:!participated});
     } });
   });
   match.pts=rec;   // guardado no jogo p/ referência/desconto
 }
-// Pontos de goleiro (confronto em quadra): +0,5 por gol do time, -0,25 por sofrido, +1 se não sofreu.
+// Pontos de goleiro: resultado do time (Vitória +3, Empate +1, Derrota 0)
+// + bônus de +2 se não sofrer nenhum gol (clean sheet).
 function awardGkPoints(match){
   if(!DB.lineup) return;
   const mu=currentMatchup();
@@ -1772,8 +1788,8 @@ function awardGkPoints(match){
     if(!gkSlot) continue;
     const gk=byId(gkSlot.pid); if(!gk) continue;
     const scored=teamScore(i), conceded=teamScore(i===mu[0]?mu[1]:mu[0]);
-    let pts=0.5*scored - 0.25*conceded + (conceded===0 ? 1 : 0);
-    pts=Math.round(pts*100)/100;
+    const res = scored>conceded?3 : scored===conceded?1 : 0;
+    const pts = res + (conceded===0 ? 2 : 0);
     gk.gkPoints=Math.round(((gk.gkPoints||0)+pts)*100)/100;
     gk.gkGames=(gk.gkGames||0)+1;
     gks.push({id:gk.id, name:gk.nome, points:pts, cleanSheet:conceded===0});
@@ -1882,15 +1898,15 @@ document.getElementById("btn-clearhist").addEventListener("click", ()=>{
 });
 
 /* ===================== TEMPORADAS ===================== */
-// Temporada 1 começa em 01/07/2026; cada uma dura 2 meses.
+// Temporada 1 começa em 01/07/2026; cada uma dura 1 mês.
 const SEASON_Y0=2026, SEASON_M0=6;   // julho (mês 0-indexed)
 function seasonIndexFor(d){
   const months=(d.getFullYear()-SEASON_Y0)*12 + (d.getMonth()-SEASON_M0);
-  return months<0 ? 0 : Math.floor(months/2);
+  return months<0 ? 0 : months;
 }
 function seasonWindow(index){
-  return { start:new Date(SEASON_Y0, SEASON_M0+index*2, 1),
-           end:new Date(SEASON_Y0, SEASON_M0+index*2+2, 1) };
+  return { start:new Date(SEASON_Y0, SEASON_M0+index, 1),
+           end:new Date(SEASON_Y0, SEASON_M0+index+1, 1) };
 }
 function seasonRange(index){
   const w=seasonWindow(index);
@@ -2066,6 +2082,7 @@ function swapMatchupSide(side){
   if(!out.length){ toast("Não há outro time de fora"); return; }
   let next=out.find(k=>k>mu[side]); if(next===undefined) next=out[0];
   mu[side]=next; DB.matchup=mu;
+  resetPlayed(); markPlayed();   // novo confronto → recomeça o rastreio de quem entrou
   save(); paintMatchup(); paintScores(); renderScorers(); updateTeamLabels();
   toast(`Entrou ${DB.lineup.names[next]}!`);
 }
@@ -2189,6 +2206,7 @@ function drawTeams(){
   });
   DB.lineup=lineup;
   DB.matchup=[0,1];   // novo sorteio → confronto volta ao padrão A × B
+  resetPlayed(); markPlayed();
   selected=null; syncTimes(); save();
   document.getElementById("btn-nextmatch").style.display="";
   renderLineup(); renderScorers(); paintMatchup(); paintScores(); updateTeamLabels();
@@ -2239,6 +2257,7 @@ function nextMatch(){
     t.reserves=[...satOut, ...leftoverBench, ...pool];
   });
   if(!moved){ toast("Nenhum reserva para entrar"); return; }
+  resetPlayed(); markPlayed();
   selected=null; syncTimes(); save(); renderLineup(); renderScorers();
   toast("Próxima partida montada — o banco entrou! 🔁");
 }
@@ -2391,6 +2410,7 @@ function handleTarget(target){
     if(S.kind==='starter'){ L.teams[S.t].slots[S.s].pid=null; } else { rmRes(S.t,S.pid); }
     addRes(target.t,S.pid);
   }
+  markPlayed();   // quem acabou de entrar em quadra conta como participante
   selected=null; syncTimes(); save(); renderLineup(); renderScorers();
 }
 
@@ -2639,6 +2659,7 @@ function applyLoadedData(){
     if(p.points===undefined) p.points=0;
     if(p.games===undefined) p.games=0;
   });
+  if(!DB.playedIds) DB.playedIds={};
   checkSeasonRollover();   // vira a temporada (arquiva + zera) se o período mudou
   // re-sincroniza variáveis de estado que derivam do DB
   numTeams = DB.numTeams||2;
