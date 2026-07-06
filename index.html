@@ -103,6 +103,13 @@
   .chip{flex:none;padding:8px 14px;border-radius:999px;background:var(--surf);border:1px solid var(--line);
     font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
   .chip.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+  .sort-row{display:flex;align-items:center;gap:8px;margin:0 2px 12px}
+  .sort-label{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .sort-seg{display:flex;gap:6px;margin-left:auto}
+  .sort-seg button{padding:7px 12px;border-radius:999px;background:var(--surf);border:1px solid var(--line);
+    font-size:12.5px;font-weight:800;color:var(--muted)}
+  .sort-seg button.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+  .sort-seg button:active{transform:scale(.95)}
 
   .player{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line)}
   .player:last-child{border-bottom:none}
@@ -685,6 +692,13 @@
         <button class="chip" data-f="Fixo">Fixos</button>
         <button class="chip" data-f="Ala">Alas</button>
         <button class="chip" data-f="Pivô">Pivôs</button>
+      </div>
+      <div class="sort-row">
+        <span class="sort-label">Ordenar por</span>
+        <div class="sort-seg" id="elenco-sort">
+          <button data-sort="gols" class="on">⚽ Gols</button>
+          <button data-sort="pontos">🏆 Pontos</button>
+        </div>
       </div>
       <div class="card" id="player-list"></div>
       <p class="tip">Os gols são marcados na aba <b>Partida</b>. Aqui você vê o total de cada jogador na temporada.<br>Toque no jogador para editar.</p>
@@ -1294,10 +1308,17 @@ function switchView(v){
 
 /* ===================== ELENCO ===================== */
 let filter = "all";
+let elencoSort = "gols";   // "gols" | "pontos"
 document.getElementById("filters").addEventListener("click", e=>{
   const c = e.target.closest(".chip"); if(!c) return;
   filter = c.dataset.f;
   document.querySelectorAll("#filters .chip").forEach(x=>x.classList.toggle("on", x===c));
+  renderPlayers();
+});
+document.getElementById("elenco-sort").addEventListener("click", e=>{
+  const b = e.target.closest("[data-sort]"); if(!b) return;
+  elencoSort = b.dataset.sort;
+  document.querySelectorAll("#elenco-sort button").forEach(x=>x.classList.toggle("on", x===b));
   renderPlayers();
 });
 
@@ -1317,8 +1338,11 @@ function stars(n){
 function renderPlayers(){
   renderStats();
   const list = document.getElementById("player-list");
+  const isPts = elencoSort==="pontos";
   let players = DB.players.slice().sort((a,b)=>
-    (a.ativo===false)-(b.ativo===false) || b.gols-a.gols || b.nivel-a.nivel || a.nome.localeCompare(b.nome));
+    (a.ativo===false)-(b.ativo===false)
+    || (isPts ? (b.points||0)-(a.points||0) : (b.gols||0)-(a.gols||0))
+    || (b.nivel||0)-(a.nivel||0) || a.nome.localeCompare(b.nome));
   if(filter!=="all") players = players.filter(p=>p.posicoes.includes(filter));
   if(players.length===0){
     list.innerHTML = `<div class="empty">
@@ -1344,7 +1368,7 @@ function renderPlayers(){
         <div class="pname">${esc(p.nome)} ${inact?'<span class="tag-inact">inativo</span>':''}</div>
         <div class="psub"><span class="posbadges">${badges}</span> ${stars(p.nivel)}</div>
       </div>
-      <div class="pgoals"><span class="goalcount">${p.gols}</span><span class="glbl">gols</span></div>
+      <div class="pgoals"><span class="goalcount">${isPts?(p.points||0):p.gols}</span><span class="glbl">${isPts?"pts":"gols"}</span></div>
     </div>`;
   }).join("");
 }
