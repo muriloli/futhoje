@@ -221,7 +221,15 @@
   .levelcard ul{margin:6px 0 0;padding-left:18px}
   .levelcard li{font-size:13.5px;color:#c4ccd4;margin-bottom:4px;line-height:1.45}
 
-  .player.inactive{opacity:.42}
+  /* o dim vai nos irmaos, nao na linha: opacity no pai nao pode ser desfeita
+     no filho, e o botao de reativar precisa continuar legivel no inativo */
+  .player.inactive > :not(.p-toggle){opacity:.42}
+  .p-toggle{width:36px;height:36px;border-radius:10px;flex:none;display:grid;place-items:center;
+    background:var(--surf2);border:1px solid var(--line);color:var(--faint);transition:transform .08s}
+  .p-toggle svg{width:17px;height:17px}
+  .p-toggle.on{background:var(--accent);border-color:var(--accent);color:var(--ink)}
+  .p-toggle:active{transform:scale(.9)}
+  body.guest .p-toggle{display:none}   /* convidado nao edita */
   .tag-inact{font-size:9px;font-weight:900;color:var(--warn);border:1px solid var(--warn);
     padding:2px 6px;border-radius:6px;letter-spacing:.5px;text-transform:uppercase}
   .posbadges{display:flex;gap:4px;flex-wrap:wrap}
@@ -1421,6 +1429,11 @@ function renderPlayers(){
         <div class="psub"><span class="posbadges">${badges}</span> ${stars(p.nivel)}</div>
       </div>
       <div class="pgoals"><span class="goalcount">${sortVal(p)}</span><span class="glbl">${sortLbl}</span></div>
+      <button class="p-toggle ${inact?'':'on'}" data-toggle="${p.id}" role="switch" aria-checked="${!inact}"
+        title="${inact?'Ativar':'Desativar'}" aria-label="${inact?'Ativar':'Desativar'} ${esc(p.nome)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 3v9"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+      </button>
     </div>`;
   }).join("");
 }
@@ -1429,9 +1442,21 @@ function initials(name){
   return (parts[0][0]+(parts[1]?parts[1][0]:"")).toUpperCase();
 }
 document.getElementById("player-list").addEventListener("click", e=>{
+  const tg = e.target.closest("[data-toggle]");
+  if(tg){ togglePlayerActive(tg.dataset.toggle); return; }   // botao rapido: nao abre a ficha
   const ed = e.target.closest(".edit");
   if(ed){ openSheet(ed.dataset.id); }   // convidado abre em modo leitura
 });
+/* liga/desliga o jogador direto na lista — mesma persistencia do sheet:
+   inativo sai do sorteio e da partida, por isso o refresh da escalacao */
+function togglePlayerActive(id){
+  if(!requireEdit()) return;
+  const p = DB.players.find(x=>x.id===id);
+  if(!p) return;
+  p.ativo = (p.ativo===false);   // inativo -> ativo; ativo/indefinido -> inativo
+  save(); renderPlayers(); refreshLineupAfterRoster();
+  toast(p.ativo ? `${p.nome} ativado` : `${p.nome} desativado`);
+}
 
 /* ===================== SHEET ===================== */
 const scrim=document.getElementById("scrim"), sheet=document.getElementById("sheet");
