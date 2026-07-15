@@ -472,6 +472,9 @@
       rgba(0,179,255,.5) 36%,rgba(166,0,255,.5) 48%,rgba(255,0,132,.5) 60%)}
   .fcard.active .fc-glare{opacity:.8}
   .fcard.active .fc-holo{opacity:.5}
+  /* color-dodge (base/(1-mistura)) satura pra branco em base clara e lava a carta.
+     Serve pro bronze/icone (escuros); prata e ouro usam overlay, que preserva o metal. */
+  .tier-prata .fc-holo,.tier-ouro .fc-holo{mix-blend-mode:overlay}
   /* conteúdo no plano do cartão (Z0); só o avatar central "salta" (não vaza) */
   .fc-in{position:relative;transform-style:preserve-3d;padding:14px 20px 40px;text-align:center}
   .fc-corner{position:absolute;top:30px;left:26px;text-align:center;line-height:1;z-index:1}
@@ -500,10 +503,9 @@
   .fc-foot{margin-top:14px;font-size:12.5px;font-weight:800;position:relative}
   .fc-bline{width:46px;height:2px;background:currentColor;opacity:.5;margin:12px auto 0}
   .fc-hint{margin-top:18px;text-align:center;color:#ffffff99;font-size:12px;font-weight:700}
-  /* profundidade 3D — mesmos 3 níveis do showcase: depth1 18px, depth2 40px, depth3 70px */
-  .fc-tiername,.fc-line,.fc-foot,.fc-bline{transform:translateZ(18px)}
-  .fc-corner,.fc-name,.fc-attrs{transform:translateZ(40px)}
-  .fc-av,.fc-photo{transform:translateZ(70px)}
+  /* conteudo fica no plano da carta (Z0): adiantar no Z faz o elemento crescer e
+     deslocar em relacao a face, e a foto (grande, colada no topo) vaza da borda.
+     A carta gira como peca solida — a espessura fica nas camadas atras da face. */
   /* raridades: cor do texto no .fcard, gradiente do corpo na .fc-face */
   .tier-bronze{color:#FFE3C4;--edge:#5F3714}
   .tier-bronze .fc-face{background:linear-gradient(165deg,#B97B42,#8C5528 55%,#5F3714)}
@@ -512,12 +514,13 @@
 
   /* OURO — mais brilhante, com reflexo dourado que varre sozinho */
   .tier-ouro{color:#4A3608;--edge:#AE7C1C}
-  .tier-ouro .fc-face{background:linear-gradient(165deg,#FFF7CC 0%,#F2D45E 40%,#D9A82E 72%,#AE7C1C 100%)}
+  /* o topo precisa de folga: perto do branco, color-dodge/screen saturam e lavam a carta */
+  .tier-ouro .fc-face{background:linear-gradient(165deg,#F9E7A0 0%,#EFCE63 42%,#D9A82E 72%,#AE7C1C 100%)}
   .tier-ouro .fc-face::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;
-    background:linear-gradient(115deg,transparent 36%,#fffbe0 47%,#fff 50%,#fffbe0 53%,transparent 64%);
+    opacity:.55;background:linear-gradient(115deg,transparent 38%,#fff4cc 48%,#fff8dc 50%,#fff4cc 52%,transparent 62%);
     background-size:280% 280%;animation:goldshine 4.8s ease-in-out infinite}
-  .tier-ouro.active .fc-glare{opacity:1}
-  .tier-ouro.active .fc-holo{opacity:.62}
+  .tier-ouro.active .fc-glare{opacity:.85}
+  .tier-ouro.active .fc-holo{opacity:.5}
 
   /* ÍCONE — lendário: fundo cósmico escuro, foil prismático vivo + wash girando, aura externa */
   .tier-esp{color:#F3EAD0;--edge:#0A0818}
