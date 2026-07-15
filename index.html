@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0E1217">
+<meta name="theme-color" content="#0F2A1F">
 <title>Futhoje</title>
 <link rel="icon" type="image/jpeg" href="/icon.jpg">
 <link rel="apple-touch-icon" href="/icon.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.cdnfonts.com/css/aspace" rel="stylesheet">
 <style>
   :root{
-    --bg:#0E1217; --bg2:#141A21; --surf:#1A222B; --surf2:#222D38; --line:#2A3742;
-    --text:#EAF0F4; --muted:#8795A2; --faint:#5C6975;
-    --accent:#C8FA4B; --accent-press:#b1e636; --ink:#10160B;
+    --bg:#0F2A1F; --bg2:#143528; --surf:#153A2B; --surf2:#1C4736; --line:#2C5A45;
+    --text:#EAF1E9; --muted:#9DBBA7; --faint:#6E8A79;
+    --accent:#F5C518; --accent-press:#dcae12; --ink:#123024;
     --gk:#FFC24B; --fixo:#5AA9FF; --ala:#45E0B0; --pivo:#FF8A4B;
     --teamA:#5AA9FF; --teamB:#FF6B6B; --warn:#FF7A45;
     --r:16px; --r-sm:11px;
@@ -25,7 +25,7 @@
   html,body{margin:0;padding:0}
   body{
     background:var(--bg); color:var(--text);
-    font-family:'Archivo',system-ui,sans-serif;
+    font-family:'Bricolage Grotesque',system-ui,sans-serif;
     font-size:16px; line-height:1.4; overscroll-behavior-y:none;
     -webkit-font-smoothing:antialiased;
   }
@@ -39,7 +39,7 @@
   /* ---------- App shell ---------- */
   #app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
   header.top{
-    position:sticky;top:0;z-index:20;background:rgba(14,18,23,.82);
+    position:sticky;top:0;z-index:20;background:rgba(15,42,31,.86);
     backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
     padding:14px 18px calc(14px) ;display:flex;align-items:center;gap:11px;
     padding-top:max(14px,env(safe-area-inset-top));
@@ -51,7 +51,7 @@
   .brand span{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase}
   .sync-dot{margin-left:auto;width:13px;height:13px;border-radius:50%;background:var(--faint);flex:none;
     align-self:center;padding:0;border:none;transition:background .3s,box-shadow .3s}
-  .sync-dot.ok{background:var(--accent);box-shadow:0 0 8px #c8fa4b66}
+  .sync-dot.ok{background:var(--accent);box-shadow:0 0 8px #F5C51866}
   .sync-dot.saving{background:var(--gk)}
   .sync-dot.off{background:var(--warn)}
   main{flex:1;padding:18px 16px calc(96px + var(--safe-b))}
@@ -62,7 +62,7 @@
   /* ---------- Bottom nav ---------- */
   nav.tabs{
     position:fixed;left:0;right:0;bottom:0;z-index:30;
-    background:rgba(18,24,31,.92);backdrop-filter:blur(16px);
+    background:rgba(20,53,40,.94);backdrop-filter:blur(16px);
     border-top:1px solid var(--line);display:flex;
     padding:8px 8px calc(8px + var(--safe-b));max-width:520px;margin:0 auto;
   }
@@ -71,7 +71,7 @@
     letter-spacing:.1px;transition:color .15s;overflow:hidden}
   nav.tabs button svg{width:22px;height:22px}
   nav.tabs button.active{color:var(--accent)}
-  nav.tabs button.active svg{filter:drop-shadow(0 0 6px #c8fa4b55)}
+  nav.tabs button.active svg{filter:drop-shadow(0 0 6px #F5C51855)}
 
   /* ---------- Common ---------- */
   .section-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 12px}
@@ -117,7 +117,7 @@
     font-weight:900;font-size:18px;position:relative}
   .avatar .num{font-family:'JetBrains Mono'}
   .posdot{position:absolute;bottom:-3px;right:-3px;width:18px;height:18px;border-radius:6px;
-    border:2.5px solid var(--surf);display:grid;place-items:center;font-size:8px;font-weight:900;color:#0c0f13}
+    border:2.5px solid var(--surf);display:grid;place-items:center;font-size:8px;font-weight:900;color:#123024}
   .pinfo{flex:1;min-width:0}
   .pinfo .pname{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pinfo .psub{display:flex;align-items:center;gap:7px;margin-top:3px;font-size:12px;color:var(--muted);font-weight:600}
@@ -143,20 +143,20 @@
   /* ---------- FAB ---------- */
   .fab{position:fixed;right:calc(50% - 260px + 18px);bottom:calc(82px + var(--safe-b));z-index:25;
     width:58px;height:58px;border-radius:18px;background:var(--accent);color:var(--ink);
-    display:grid;place-items:center;box-shadow:0 8px 24px #c8fa4b3a,0 2px 8px #0006}
+    display:grid;place-items:center;box-shadow:0 8px 24px #F5C5183a,0 2px 8px #0006}
   @media(max-width:556px){.fab{right:calc(18px)}}
   .fab svg{width:28px;height:28px}
   .fab:active{transform:scale(.92)}
 
   /* ---------- Partida ---------- */
-  .score-board{background:linear-gradient(160deg,#10161d,#0b0f14);border:1px solid var(--line);
+  .score-board{background:linear-gradient(160deg,#143528,#0C2318);border:1px solid var(--line);
     border-radius:20px;padding:16px;position:relative;overflow:hidden}
   .score-board::before{content:"";position:absolute;inset:0;
-    background:radial-gradient(120% 80% at 50% -20%,#c8fa4b14,transparent 60%);pointer-events:none}
+    background:radial-gradient(120% 80% at 50% -20%,#F5C51814,transparent 60%);pointer-events:none}
   .period-tag{display:flex;justify-content:center;margin-bottom:6px}
-  .period-tag .pill{background:#1d2730;color:var(--muted);border:1px solid var(--line)}
+  .period-tag .pill{background:#1C4736;color:var(--muted);border:1px solid var(--line)}
   .clock{font-family:'JetBrains Mono';font-weight:800;font-size:62px;text-align:center;line-height:1;
-    letter-spacing:1px;margin:2px 0 4px;text-shadow:0 0 22px #c8fa4b22}
+    letter-spacing:1px;margin:2px 0 4px;text-shadow:0 0 22px #F5C51822}
   .clock.warn{color:var(--warn);text-shadow:0 0 22px #ff7a4533;animation:pulse 1s infinite}
   @keyframes pulse{50%{opacity:.55}}
   .clock-ctrls{display:flex;gap:9px;justify-content:center;margin:10px 0 4px}
@@ -278,7 +278,7 @@
   .hcard-top{display:flex;align-items:center;gap:9px;margin-bottom:12px}
   .hdate{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
   .res-badge{font-size:10.5px;font-weight:900;padding:3px 9px;border-radius:999px;letter-spacing:.3px}
-  .res-badge.win{background:#c8fa4b1f;color:var(--accent)}
+  .res-badge.win{background:#F5C5181f;color:var(--accent)}
   .res-badge.draw{background:#8795a222;color:var(--muted)}
   .hdel{margin-left:auto;width:32px;height:32px;border-radius:9px;background:var(--surf2);display:grid;place-items:center;flex:none}
   .hdel svg{width:15px;height:15px;color:var(--muted)}
@@ -310,7 +310,7 @@
   .pod .pgols{font-family:'JetBrains Mono';font-weight:800;font-size:15px;margin-top:2px}
   .pod .pgols small{font-size:9.5px;color:var(--muted);font-weight:700;margin-left:2px}
   .pedestal{margin-top:11px;width:100%;border-radius:13px 13px 0 0;display:grid;place-items:center;
-    font-family:'JetBrains Mono';font-weight:800;font-size:24px;color:#0c0f13;box-shadow:inset 0 2px 6px #ffffff30}
+    font-family:'JetBrains Mono';font-weight:800;font-size:24px;color:#123024;box-shadow:inset 0 2px 6px #ffffff30}
   .pod1 .pedestal{height:96px}.pod2 .pedestal{height:72px}.pod3 .pedestal{height:56px}
 
   .lead-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
@@ -351,7 +351,7 @@
   .seg button{padding:12px 4px;border-radius:12px;background:var(--surf);border:1px solid var(--line);
     font-weight:800;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px}
   .seg button .ic{width:20px;height:20px}
-  .seg button.on{border-color:transparent;color:#0c0f13}
+  .seg button.on{border-color:transparent;color:#123024}
   .lvlpick{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
   .lvlpick button{aspect-ratio:1;border-radius:12px;background:var(--surf);border:1px solid var(--line);
     font-family:'JetBrains Mono';font-weight:800;font-size:18px;color:var(--muted)}
@@ -429,22 +429,28 @@
   .radar-wrap{margin:0 auto 8px;color:var(--muted)}
 
   /* ---------- Cartão do jogador (estilo FUT, escudo em 3D com camadas) ---------- */
-  #cardview{position:fixed;inset:0;z-index:56;display:none;place-items:center;background:#000d;padding:24px;perspective:560px}
+  #cardview{position:fixed;inset:0;z-index:56;display:none;place-items:center;background:#000d;padding:24px;perspective:900px}
   #cardview.show{display:grid}
   /* a sombra (filter) fica no wrap, senão achataria o 3D do cartão */
-  .fcard-wrap{filter:drop-shadow(0 22px 44px #000b);animation:cardin .32s cubic-bezier(.2,1.4,.4,1)}
-  .fcard-wrap.tier-esp{filter:drop-shadow(0 22px 44px #000b) drop-shadow(0 0 22px #f2d57e99)}
+  /* a perspectiva TEM que ficar no pai direto do elemento que gira (.fcard),
+     igual ao .stage do showcase — em #cardview ela não alcança o neto e o 3D achata */
+  .fcard-wrap{filter:drop-shadow(0 22px 44px #000b);animation:cardin .32s cubic-bezier(.2,1.4,.4,1);
+    touch-action:none;perspective:900px}
+  .fcard-wrap.tier-esp{filter:drop-shadow(0 22px 44px #000b) drop-shadow(0 0 24px #f2d57e88) drop-shadow(0 0 30px #b98bff55)}
   @keyframes cardin{from{transform:scale(.72) rotate(-3deg);opacity:0}to{transform:none;opacity:1}}
   /* elemento que gira: preserve-3d, SEM clip/filter (senão achata as camadas) */
   .fcard{position:relative;width:290px;transform-style:preserve-3d;
     transition:transform .5s cubic-bezier(.2,.8,.3,1);
     touch-action:none;cursor:grab;--gx:50%;--gy:50%;--hx:50%;--hy:50%}
   .fcard:active{cursor:grabbing}
-  .fcard.active,.fcard.active .fc-in>*{transition:transform .06s linear}
+  .fcard.active{transition:transform .08s linear}
   /* silhueta de escudo só nas camadas de superfície (folhas, não achatam o pai) */
   .fc-face,.fc-holo,.fc-glare{position:absolute;inset:0;pointer-events:none;
-    clip-path:polygon(50% 0%,57% 2.4%,91% 2.4%,100% 8%,100% 78%,96% 84%,56% 96.6%,50% 100%,44% 96.6%,4% 84%,0% 78%,0% 8%,9% 2.4%,43% 2.4%)}
-  .fc-face{box-shadow:inset 0 0 0 4px rgba(255,255,255,.4)}
+    border-radius:20px;clip-path:inset(0 round 20px)}
+  .fc-face{box-shadow:inset 0 0 0 3px rgba(255,255,255,.38)}
+  /* lateral da carta: pilha de camadas atrás da face (ver cardEdges no JS) */
+  .fc-edge{position:absolute;inset:0;pointer-events:none;border-radius:20px;
+    background:var(--edge,#2b2b2b);transform:translateZ(calc(var(--i) * -1px))}
   .fc-face::before{content:"";position:absolute;inset:0;opacity:.07;
     background:repeating-linear-gradient(115deg,transparent 0 13px,currentColor 13px 14px)}
   /* brilho no MESMO plano do cartão (Z0) e pintado por cima (vem depois no DOM):
@@ -486,16 +492,47 @@
   .fc-foot{margin-top:14px;font-size:12.5px;font-weight:800;position:relative}
   .fc-bline{width:46px;height:2px;background:currentColor;opacity:.5;margin:12px auto 0}
   .fc-hint{margin-top:18px;text-align:center;color:#ffffff99;font-size:12px;font-weight:700}
+  /* profundidade 3D — mesmos 3 níveis do showcase: depth1 18px, depth2 40px, depth3 70px */
+  .fc-tiername,.fc-line,.fc-foot,.fc-bline{transform:translateZ(18px)}
+  .fc-corner,.fc-name,.fc-attrs{transform:translateZ(40px)}
+  .fc-av,.fc-photo{transform:translateZ(70px)}
   /* raridades: cor do texto no .fcard, gradiente do corpo na .fc-face */
-  .tier-bronze{color:#FFE3C4}
+  .tier-bronze{color:#FFE3C4;--edge:#5F3714}
   .tier-bronze .fc-face{background:linear-gradient(165deg,#B97B42,#8C5528 55%,#5F3714)}
-  .tier-prata{color:#39434D}
+  .tier-prata{color:#39434D;--edge:#8B98A5}
   .tier-prata .fc-face{background:linear-gradient(165deg,#E9EEF3,#C2CBD4 55%,#9AA6B2)}
-  .tier-ouro{color:#4A3608}
-  .tier-ouro .fc-face{background:linear-gradient(165deg,#F6E296,#E2BE56 50%,#BE9128)}
-  .tier-esp{color:#8A6A14}
-  .tier-esp .fc-face{background:linear-gradient(170deg,#FFFFFF,#F6F1E5 55%,#EADFC4)}
-  .tier-esp .fc-av{background:linear-gradient(180deg,#fff,#F0E9D8)}
+
+  /* OURO — mais brilhante, com reflexo dourado que varre sozinho */
+  .tier-ouro{color:#4A3608;--edge:#AE7C1C}
+  .tier-ouro .fc-face{background:linear-gradient(165deg,#FFF7CC 0%,#F2D45E 40%,#D9A82E 72%,#AE7C1C 100%)}
+  .tier-ouro .fc-face::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;
+    background:linear-gradient(115deg,transparent 36%,#fffbe0 47%,#fff 50%,#fffbe0 53%,transparent 64%);
+    background-size:280% 280%;animation:goldshine 4.8s ease-in-out infinite}
+  .tier-ouro.active .fc-glare{opacity:1}
+  .tier-ouro.active .fc-holo{opacity:.62}
+
+  /* ÍCONE — lendário: fundo cósmico escuro, foil prismático vivo + wash girando, aura externa */
+  .tier-esp{color:#F3EAD0;--edge:#0A0818}
+  .tier-esp .fc-face{background:radial-gradient(120% 90% at 50% 12%,#2B2456 0%,#141033 46%,#0A0818 100%);
+    box-shadow:inset 0 0 0 3px #d9c58355}
+  .tier-esp .fc-face::before{opacity:.42;mix-blend-mode:color-dodge;background-size:200% 200%;
+    background-image:repeating-linear-gradient(115deg,
+      rgba(255,79,163,.5) 0%,rgba(255,210,79,.5) 12%,rgba(79,255,160,.5) 24%,
+      rgba(79,210,255,.5) 36%,rgba(166,79,255,.5) 48%,rgba(255,79,163,.5) 60%);
+    animation:iconfoil 6s linear infinite}
+  .tier-esp .fc-face::after{content:"";position:absolute;inset:-45%;pointer-events:none;opacity:.26;mix-blend-mode:screen;
+    background:conic-gradient(from 0deg,#ff4fa3,#ffd24f,#4fffa0,#4fd2ff,#a64fff,#ff4fa3);
+    animation:iconrim 8s linear infinite}
+  .tier-esp .fc-rating{color:#FFE9A8;text-shadow:0 0 12px #f2d57eaa}
+  .tier-esp .fc-attr b{color:#FFE9A8}
+  .tier-esp .fc-name{color:#F7EED6;text-shadow:0 0 12px #b98bff88,0 2px 6px #000a}
+  .tier-esp .fc-av{background:radial-gradient(circle at 38% 28%,#3a3168,#171235);border-color:#d9c583;color:#FFE9A8;
+    box-shadow:0 0 24px #b98bff66,inset 0 2px 14px #ffffff33}
+  .tier-esp.active .fc-holo{opacity:.55}
+
+  @keyframes goldshine{0%{background-position:160% 0}55%,100%{background-position:-70% 0}}
+  @keyframes iconfoil{0%{background-position:0 0}100%{background-position:200% 0}}
+  @keyframes iconrim{to{transform:rotate(360deg)}}
 
   /* ---------- Botão de configurações ---------- */
   .cfg-btn{width:34px;height:34px;border-radius:10px;background:var(--surf2);border:1px solid var(--line);
@@ -593,7 +630,7 @@
 
   /* ============================================================
      TEMA FRUTIGER AERO — céu azul, vidro translúcido e brilho gel
-     Ativado pela classe "aero" no <html> (Configurações ⚙)
+     Ativado pela classe "aero" no <html> (Configurações)
      ============================================================ */
   html.aero{
     --bg:#7FBFE9; --bg2:#EAF7FF; --surf:rgba(255,255,255,.62); --surf2:rgba(255,255,255,.8);
@@ -692,7 +729,7 @@
     <section class="view active" id="view-elenco">
       <div class="vote-banner" id="vote-banner" style="display:none">
         <span id="vote-banner-txt">Enquete de habilidades aberta — dê sua nota!</span>
-        <button class="btn" id="btn-vote">🗳️ Votar</button>
+        <button class="btn" id="btn-vote">Votar</button>
       </div>
       <div class="stats-row">
         <div class="stat"><div class="num" id="stat-count">0</div><div class="lbl">Jogadores</div></div>
@@ -709,9 +746,9 @@
       <div class="sort-row">
         <span class="sort-label">Ordenar por</span>
         <div class="sort-seg" id="elenco-sort">
-          <button data-sort="gols" class="on">⚽ Gols</button>
-          <button data-sort="pontos">🏆 Pontos</button>
-          <button data-sort="nivel">⭐ Nível</button>
+          <button data-sort="gols" class="on">Gols</button>
+          <button data-sort="pontos">Pontos</button>
+          <button data-sort="nivel">Nível</button>
         </div>
       </div>
       <div class="card" id="player-list"></div>
@@ -745,7 +782,7 @@
             <div class="big mono" id="scoreB">0</div>
           </div>
         </div>
-        <div class="score-cap" id="score-cap">O placar sobe quando você marca quem fez o gol, logo abaixo ⬇</div>
+        <div class="score-cap" id="score-cap">O placar sobe quando você marca quem fez o gol, logo abaixo</div>
       </div>
 
       <div style="display:flex;gap:9px;margin-top:14px">
@@ -772,8 +809,8 @@
             <button data-n="4">4 times</button>
           </div>
         </div>
-        <button class="btn primary block" id="btn-draw">⚖️ Sortear times</button>
-        <button class="btn ghost block" id="btn-nextmatch" style="display:none;margin-top:9px">⏭️ Próxima partida · banco entra</button>
+        <button class="btn primary block" id="btn-draw">Sortear times</button>
+        <button class="btn ghost block" id="btn-nextmatch" style="display:none;margin-top:9px">Próxima partida · banco entra</button>
       </div>
       <div id="edit-hint" class="edit-hint" style="display:none"></div>
       <div id="balance-bar" style="display:none"></div>
@@ -793,9 +830,9 @@
     <section class="view" id="view-lideres">
       <div class="section-head"><h2>Líderes</h2><span class="meta" id="lead-meta"></span></div>
       <div class="seg" id="lead-mode" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
-        <button data-mode="pts" class="on">🏆 Pontos</button>
-        <button data-mode="gols">⚽ Artilheiros</button>
-        <button data-mode="gk">🧤 Goleiros</button>
+        <button data-mode="pts" class="on">Pontos</button>
+        <button data-mode="gols">Artilheiros</button>
+        <button data-mode="gk">Goleiros</button>
       </div>
       <div class="filters" id="season-tabs"></div>
       <div class="season-range" id="season-range"></div>
@@ -836,7 +873,7 @@
     <div class="photo-pick">
       <div class="photo-prev" id="f-photo-prev"></div>
       <div class="photo-actions">
-        <button type="button" class="btn ghost" id="btn-photo">📷 Escolher foto</button>
+        <button type="button" class="btn ghost" id="btn-photo">Escolher foto</button>
         <button type="button" class="btn ghost" id="btn-photo-rm" style="display:none">Remover</button>
       </div>
       <input type="file" id="f-photo-input" accept="image/*" style="display:none">
@@ -866,7 +903,7 @@
     </div>
   </div>
   <button class="btn ghost block" id="btn-card" style="display:none;margin-bottom:10px">Ver cartão do jogador</button>
-  <button class="btn ghost block" id="btn-stats" style="display:none;margin-bottom:10px">📊 Estatísticas do jogador</button>
+  <button class="btn ghost block" id="btn-stats" style="display:none;margin-bottom:10px">Estatísticas do jogador</button>
   <div class="sheet-actions">
     <button class="btn danger" id="btn-del" style="display:none">Excluir</button>
     <button class="btn primary block" id="btn-save">Salvar</button>
@@ -879,12 +916,12 @@
 <!-- Sheet configurações -->
 <div class="sheet" id="sheet-settings">
   <div class="grabber"></div>
-  <h2>⚙️ Configurações</h2>
+  <h2>Configurações</h2>
   <div class="field">
     <label>Design do aplicativo</label>
     <div class="seg" id="theme-pick" style="grid-template-columns:repeat(2,1fr)">
-      <button data-theme="solid"><span style="font-size:20px">🌑</span><span>Sólido</span></button>
-      <button data-theme="aero"><span style="font-size:20px">💧</span><span>Frutiger Aero</span></button>
+      <button data-theme="solid"><span>Sólido</span></button>
+      <button data-theme="aero"><span>Frutiger Aero</span></button>
     </div>
     <div class="lvl-desc" id="theme-desc"></div>
   </div>
@@ -895,17 +932,17 @@
     </div>
   </div>
   <div class="field" id="stats-admin-field">
-    <label>✏️ Ajuste manual</label>
+    <label>Ajuste manual</label>
     <button class="btn ghost block" id="btn-stats-edit">Ajustar gols e pontos dos jogadores</button>
   </div>
   <div class="field" id="poll-admin-field">
-    <label>🗳️ Enquete de habilidades</label>
+    <label>Enquete de habilidades</label>
     <div id="poll-admin"></div>
   </div>
   <div class="field">
     <div class="switch">
       <div class="access-info" id="access-info">Modo: Convidado</div>
-      <button class="btn ghost" id="btn-deslogar" style="padding:10px 16px;min-height:auto">🚪 Deslogar</button>
+      <button class="btn ghost" id="btn-deslogar" style="padding:10px 16px;min-height:auto">Deslogar</button>
     </div>
   </div>
   <button class="btn primary block" id="btn-close-settings" style="margin-top:6px">Fechar</button>
@@ -915,7 +952,7 @@
 <div class="vote-screen" id="vote-screen">
   <div class="vote-inner">
     <div id="vote-step-code">
-      <h2>🗳️ Enquete de habilidades</h2>
+      <h2>Enquete de habilidades</h2>
       <p class="sub">Avalie a habilidade de cada jogador. É <b>anônimo</b>.<br>Digite o código que você recebeu.</p>
       <input id="vote-code" placeholder="CÓDIGO" maxlength="6" autocomplete="off">
       <button class="btn primary block" id="vote-code-ok">Começar</button>
@@ -931,7 +968,6 @@
       </div>
     </div>
     <div id="vote-step-done" style="display:none;text-align:center;padding-top:40px">
-      <div style="font-size:56px">✅</div>
       <h2>Voto registrado!</h2>
       <p class="sub">Obrigado por avaliar. Sua resposta é anônima.</p>
       <button class="btn primary block" id="vote-done-ok">Fechar</button>
@@ -952,7 +988,7 @@
     <p class="sub">Entre com a senha para gerenciar,<br>ou como convidado para apenas visualizar.</p>
     <input type="password" id="login-pw" placeholder="Senha de editor" autocomplete="current-password" inputmode="text">
     <button class="btn primary block" id="login-enter">Entrar</button>
-    <button class="btn ghost block" id="login-guest">👁️ Entrar como convidado</button>
+    <button class="btn ghost block" id="login-guest">Entrar como convidado</button>
     <div class="login-err" id="login-err"></div>
   </div>
 </div>
@@ -974,7 +1010,6 @@
 <!-- Alerta de fim de tempo (aparece por cima de qualquer tela) -->
 <div class="timeup" id="timeup">
   <div class="timeup-box">
-    <div class="timeup-emoji">⏱️</div>
     <div class="timeup-title">SAIU, CABOU!</div>
     <div class="timeup-sub">Fim do tempo</div>
     <button class="btn primary block" id="timeup-ok" style="margin-top:18px">OK</button>
@@ -1041,7 +1076,7 @@ const LEVELS = [
     "Chute forte e colocado com as duas pernas",
     "Boa visão de jogo, cobra faltas e escanteios",
     "Organiza o posicionamento do time"]},
-  {n:5,nome:"Craque",cor:"#C8FA4B",desc:"Decide o jogo sozinho.",skills:[
+  {n:5,nome:"Craque",cor:"#F5C518",desc:"Decide o jogo sozinho.",skills:[
     "Dribles em velocidade e finalização de qualquer ângulo",
     "Passes de primeira que quebram a linha de marcação",
     "Lidera taticamente e dita o ritmo da partida",
@@ -1058,7 +1093,7 @@ const LINE_SKILLS = [
   {k:"fol", nome:"Fôlego", ic:"🫁"}
 ];
 const GK_SKILLS = [
-  {k:"ref", nome:"Reflexo", ic:"🧤"},
+  {k:"ref", nome:"Reflexo", ic:""},
   {k:"sai", nome:"Saída do gol", ic:"🏃"},
   {k:"rep", nome:"Reposição", ic:"🎯"}
 ];
@@ -1287,7 +1322,7 @@ document.getElementById("login-enter").addEventListener("click", async ()=>{
   if(!pw){ err.textContent="Digite a senha."; return; }
   err.textContent="Verificando...";
   const ok=await tryLogin(pw);
-  if(ok){ document.getElementById("login-pw").value=""; err.textContent=""; toast("Bem-vindo, editor ✏️"); }
+  if(ok){ document.getElementById("login-pw").value=""; err.textContent=""; toast("Bem-vindo, editor"); }
   else err.textContent="Senha incorreta ou sem conexão.";
 });
 document.getElementById("login-pw").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("login-enter").click(); });
@@ -1303,7 +1338,7 @@ try{ theme = localStorage.getItem("quadra_theme")==="aero" ? "aero" : "solid"; }
 function applyTheme(){
   document.documentElement.classList.toggle("aero", theme==="aero");
   const mc=document.querySelector('meta[name="theme-color"]');
-  if(mc) mc.setAttribute("content", theme==="aero" ? "#7FBFE9" : "#0E1217");
+  if(mc) mc.setAttribute("content", theme==="aero" ? "#7FBFE9" : "#0F2A1F");
 }
 applyTheme();   // aplica antes de qualquer render, sem "piscar" o tema errado
 
@@ -1522,6 +1557,7 @@ function openCard(id){
   document.getElementById("cardview").innerHTML=`
     <div class="fcard-wrap ${tier.cls}">
       <div class="fcard ${tier.cls}">
+        ${cardEdges()}
         <div class="fc-face"></div>
         <div class="fc-in">
         <div class="fc-corner">
@@ -1547,30 +1583,47 @@ function openCard(id){
   cv.classList.add("show");
   attachTilt(cv.querySelector(".fcard"));
 }
-/* tilt 3D estilo TCG Pocket — inclina seguindo o dedo, ancorado no centro */
+/* Espessura da carta: ela é um plano só, não tem lateral. Empilhamos camadas 1px
+   atrás da face — ao inclinar, a pilha aparece como a borda/lateral da carta.
+   1px de passo evita "listras" no ângulo máximo de giro (26°). */
+const CARD_THICKNESS = 8;   // px de espessura (~2mm na escala da carta)
+const cardEdges = () =>
+  Array.from({length:CARD_THICKNESS},(_,i)=>`<div class="fc-edge" style="--i:${i+1}"></div>`).join("");
+
+/* tilt 3D estilo TCG Pocket — inclina seguindo o dedo, ancorado no centro.
+   O ponteiro é medido no .fcard-wrap (que NÃO é transformado): se medíssemos o
+   próprio cartão, o rect mudaria a cada frame junto com a rotação e realimentaria
+   o cálculo, deixando o movimento tremido. A suavização fica com o CSS (.fcard.active). */
 function attachTilt(card){
   if(!card) return;
-  const MAX=30;   // amplitude da inclinação
+  const MAX=26;                          // amplitude da inclinação
+  const stage=card.parentElement||card;  // referência estável
+  const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+  let raf=0, rect=null;
   const move=e=>{
-    const r=card.getBoundingClientRect();
-    const px=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
-    const py=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
-    card.style.transition="transform 0s";
-    card.style.transform=`rotateX(${(0.5-py)*MAX}deg) rotateY(${(px-0.5)*MAX}deg) scale(1.05)`;
-    card.style.setProperty("--gx",(px*100)+"%"); card.style.setProperty("--gy",(py*100)+"%");
-    card.style.setProperty("--hx",(px*100)+"%"); card.style.setProperty("--hy",(py*100)+"%");
-    card.classList.add("active");
+    if(!rect) rect=stage.getBoundingClientRect();
+    const px=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width));
+    const py=Math.min(1,Math.max(0,(e.clientY-rect.top)/rect.height));
+    cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(()=>{      // 1 escrita de estilo por frame
+      if(!reduce) card.style.transform=`rotateX(${((0.5-py)*MAX).toFixed(2)}deg) rotateY(${((px-0.5)*MAX).toFixed(2)}deg)`;
+      card.style.setProperty("--gx",(px*100).toFixed(1)+"%"); card.style.setProperty("--gy",(py*100).toFixed(1)+"%");
+      card.style.setProperty("--hx",(px*100).toFixed(1)+"%"); card.style.setProperty("--hy",(py*100).toFixed(1)+"%");
+    });
   };
+  const start=e=>{ rect=stage.getBoundingClientRect(); card.classList.add("active"); move(e); };
   const end=()=>{
-    card.style.transition="transform .6s cubic-bezier(.2,.8,.3,1)";
-    card.style.transform=""; card.classList.remove("active");
+    cancelAnimationFrame(raf); rect=null;
+    card.classList.remove("active");
+    card.style.transform="";             // volta suave pelo transition base do .fcard
     card.style.setProperty("--gx","50%"); card.style.setProperty("--gy","50%");
   };
-  card.addEventListener("pointerdown",e=>{ try{card.setPointerCapture(e.pointerId);}catch(_){} move(e); });
-  card.addEventListener("pointermove",move);
-  card.addEventListener("pointerup",end);
-  card.addEventListener("pointercancel",end);
-  card.addEventListener("pointerleave",end);
+  stage.addEventListener("pointerenter",start);
+  stage.addEventListener("pointermove",move);
+  stage.addEventListener("pointerleave",end);
+  stage.addEventListener("pointerdown",e=>{ try{stage.setPointerCapture(e.pointerId);}catch(_){} start(e); });
+  stage.addEventListener("pointerup",end);
+  stage.addEventListener("pointercancel",end);
   card.addEventListener("click",e=>e.stopPropagation());  // tocar na carta não fecha
 }
 document.getElementById("cardview").addEventListener("click",()=>{
@@ -1611,7 +1664,7 @@ function openPlayerStats(id){
         ${tile(`${s.vit}-${s.emp}-${s.der}`,"V · E · D")}
       </div>
       <p style="color:var(--faint);font-size:11.5px;text-align:center;margin:12px 0 0">Considera as partidas em que ${esc(p.nome.split(" ")[0])} entrou em quadra.</p>`;
-  pollModal(`<h3>📊 ${esc(p.nome)}</h3>${body}<button class="btn primary block" id="pstats-ok" style="margin-top:14px">Fechar</button>`);
+  pollModal(`<h3>${esc(p.nome)}</h3>${body}<button class="btn primary block" id="pstats-ok" style="margin-top:14px">Fechar</button>`);
   document.getElementById("pstats-ok").addEventListener("click", closePollModal);
 }
 
@@ -1714,7 +1767,7 @@ document.getElementById("cfg-skillmode").addEventListener("click", ()=>{
     });
   }
   save(); paintSkillMode(); renderSkillsUI();
-  toast(DB.skillMode ? "Árvore de habilidades ativada 🌳" : "Voltou à nota única de 1 a 5");
+  toast(DB.skillMode ? "Árvore de habilidades ativada" : "Voltou à nota única de 1 a 5");
 });
 document.getElementById("btn-settings").addEventListener("click", ()=>{
   paintThemePick(); paintSkillMode(); fetchPoll(); scrim.classList.add("show"); settingsSheet.classList.add("show");
@@ -1729,7 +1782,7 @@ document.getElementById("theme-pick").addEventListener("click", e=>{
   applyTheme(); paintThemePick();
   // várias cores são resolvidas em JS na hora de renderizar → repinta tudo
   buildPosButtons(); renderLevels(); applyLoadedData();
-  toast(theme==="aero" ? "Design Frutiger Aero ativado 💧" : "Design Sólido ativado 🌑");
+  toast(theme==="aero" ? "Design Frutiger Aero ativado" : "Design Sólido ativado");
 });
 
 document.getElementById("btn-save").addEventListener("click", ()=>{
@@ -1964,7 +2017,7 @@ function renderHistory(){
       const [A,B]=m.teams;
       badge = A.score===B.score
         ? `<span class="res-badge draw">Empate</span>`
-        : `<span class="res-badge win">🏆 ${esc((A.score>B.score?A:B).name)}</span>`;
+        : `<span class="res-badge win">${esc((A.score>B.score?A:B).name)}</span>`;
     }
     const scoreLine = (m.teams.length===2)
       ? `<div class="hscore">
@@ -1986,7 +2039,7 @@ function renderHistory(){
       }).filter(Boolean);
       // fallback: gols que não casaram com nenhum time (dados antigos)
       const orphans=m.scorers.filter(s=>!seen.has(s));
-      if(orphans.length) lines.push(`<div class="hs-line">⚽ ${orphans.map(s=>esc(s.name)+(s.goals>1?` <b>${s.goals}</b>`:"")).join(", ")}</div>`);
+      if(orphans.length) lines.push(`<div class="hs-line">${orphans.map(s=>esc(s.name)+(s.goals>1?` <b>${s.goals}</b>`:"")).join(", ")}</div>`);
       scorers=`<div class="hscorers">${lines.join("")}</div>`;
     }
     return `<div class="card hcard">
@@ -2173,7 +2226,6 @@ function renderLeaders(){
     const p=top[idx]; if(!p) return "";
     const m=medals[idx].c;
     return `<div class="pod pod${idx+1}">
-      ${idx===0?'<div class="crown">👑</div>':''}
       <div class="pavatar" style="border-color:${m};background:${m}22;color:${m}">${avatarInner(p, initials(p.nome))}</div>
       <div class="pname">${esc(p.nome)}${rankMove(p, idx+1)}</div>
       <div class="pgols" style="color:${m}">${valTxt(p)}<small>${unit}</small></div>
@@ -2226,7 +2278,7 @@ function paintMatchup(){
   const cap=document.getElementById("score-cap");
   if(cap) cap.textContent = multi
     ? "Toque no placar de um time para trocá-lo pelo time de fora (partida encerrada)."
-    : "O placar sobe quando você marca quem fez o gol, logo abaixo ⬇";
+    : "O placar sobe quando você marca quem fez o gol, logo abaixo";
 }
 // clica no placar de um time → troca pelo próximo time que está de fora
 function swapMatchupSide(side){
@@ -2309,7 +2361,7 @@ const SEQ = ["Goleiro","Fixo","Ala","Ala","Pivô"];
 const PITCH_XY = [{x:50,y:86},{x:50,y:65},{x:27,y:47},{x:73,y:47},{x:50,y:27}];
 const TEAM_SIZE = 5;
 const LETTERS = ["A","B","C","D"];
-const ACCENTS = ()=>[cssvar("--teamA"),cssvar("--teamB"),"#C8FA4B","#FFC24B"];
+const ACCENTS = ()=>[cssvar("--teamA"),cssvar("--teamB"),"#F5C518","#FFC24B"];
 function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
 function activePlayers(){ return DB.players.filter(p=>p.ativo!==false); }
 function byId(id){ return DB.players.find(p=>p.id===id); }
@@ -2415,7 +2467,7 @@ function nextMatch(){
   if(!moved){ toast("Nenhum reserva para entrar"); return; }
   resetPlayed(); markPlayed();
   selected=null; syncTimes(); save(); renderLineup(); renderScorers();
-  toast("Próxima partida montada — o banco entrou! 🔁");
+  toast("Próxima partida montada — o banco entrou!");
 }
 document.getElementById("btn-nextmatch").addEventListener("click", ()=>{ if(!requireEdit())return; nextMatch(); });
 
@@ -2776,7 +2828,7 @@ function showCodesList(codes, used){
   pollModal(`<h3>Códigos (${codes.length})</h3>
     <p style="color:var(--muted);font-size:13px;margin:0">Envie um código para cada pessoa — cada um vota uma vez.${used?" Os riscados já votaram.":""}</p>
     <div class="codes-grid">${grid}</div>
-    <button class="btn ghost block" id="copy-codes" style="margin-bottom:8px">📋 Copiar todos</button>
+    <button class="btn ghost block" id="copy-codes" style="margin-bottom:8px">Copiar todos</button>
     <button class="btn primary block" id="close-pm">Fechar</button>`);
   document.getElementById("close-pm").addEventListener("click", closePollModal);
   document.getElementById("copy-codes").addEventListener("click", ()=>{
