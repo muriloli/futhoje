@@ -94,13 +94,14 @@
    de salvar, paramos o mais antigo e usamos o arquivo dele, inteiro. */
 const SEG_MS   = 120000;   // cada gravador roda 2 min e recicla
 const OFF_MS   = 60000;    // o segundo entra defasado 1 min
+const TAIL_MS  = 5000;     // segue gravando depois do toque (pega a comemoração)
 const SLICE_MS = 1000;
 const POLL_MS  = 2000;     // de quanto em quanto pergunta se pediram lance
 const BEAT_MS  = 15000;    // batimento: avisa o app que a câmera está viva
 
 const $ = id => document.getElementById(id);
 let stream=null, recOpts=null, wake=null;
-let lastReq=null, saving=false;
+let lastReq=null, saving=false, fmtLabel="";
 const slots = [slot("A"), slot("B")];
 
 function slot(nome){ return {nome, rec:null, chunks:[], startedAt:0, timer:null}; }
@@ -159,8 +160,8 @@ async function start(){
     startSlot(slots[0]);
     setTimeout(()=>startSlot(slots[1]), OFF_MS);   // o 2º entra defasado
 
-    const fmt = (mimeType||"").includes("mp4") ? "MP4" : "WebM";
-    setDot("on"); pill("p-state","gravando · <b>"+fmt+"</b>","good");
+    fmtLabel = (mimeType||"").includes("mp4") ? "MP4" : "WebM";
+    setDot("on"); pill("p-state","gravando · <b>"+fmtLabel+"</b>","good");
     $("start").style.display="none";
     $("hint").innerHTML = "Tudo certo. <b>Não bloqueie a tela nem troque de app</b> — o navegador "+
       "interrompe a gravação. Mantenha na tomada. Cada lance salvo tem entre <b>1 e 2 minutos</b> "+
@@ -208,18 +209,29 @@ function saveClip(){
   const s = maisAntigo();
   if(!s) return;
   saving = true;
+  // Sem isto, a reciclagem dos 2 min pode cair no meio da cauda, trocar o
+  // gravador e levar junto o onstop — o lance sumiria sem aviso.
+  clearTimeout(s.timer);
   const f=$("flash"); f.classList.add("go"); setTimeout(()=>f.classList.remove("go"),60);
 
   const rec = s.rec, chunks = s.chunks;
-  const segs = Math.round((Date.now()-s.startedAt)/1000);
   rec.onstop = ()=>{                       // stop() descarrega o último pedaço antes disto
     const tipo = rec.mimeType || "video/webm";
-    const blob = new Blob(chunks, {type:tipo});
-    baixar(blob, segs, tipo);
+    const segs = Math.round((Date.now()-s.startedAt)/1000);   // conta já com a cauda
+    baixar(new Blob(chunks,{type:tipo}), segs, tipo);
+    pill("p-state","gravando · <b>"+fmtLabel+"</b>","good");
     startSlot(s);                          // volta a cobrir imediatamente
     setTimeout(()=>{ saving=false; }, 800);
   };
-  try{ rec.stop(); }catch(e){ saving=false; }
+
+  let resta = Math.round(TAIL_MS/1000);
+  const mostra = ()=> pill("p-state","gravando o fim · <b>"+resta+"s</b>","good");
+  mostra();
+  const iv = setInterval(()=>{ if(--resta > 0) mostra(); }, 1000);
+  setTimeout(()=>{
+    clearInterval(iv);
+    try{ rec.stop(); }catch(e){ saving=false; }
+  }, TAIL_MS);
 }
 
 function baixar(blob, segs, tipo){
