@@ -1,27 +1,131 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "aero-bg.jpg", "use": "@vercel/static" },
-    { "src": "court.jpg", "use": "@vercel/static" },
-    { "src": "icon.jpg", "use": "@vercel/static" },
-    { "src": "api/state.js", "use": "@vercel/node" },
-    { "src": "api/photos.js", "use": "@vercel/node" },
-    { "src": "api/photo.js", "use": "@vercel/node" },
-    { "src": "api/login.js", "use": "@vercel/node" },
-    { "src": "api/poll.js", "use": "@vercel/node" },
-    { "src": "api/matches.js", "use": "@vercel/node" }
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "camera.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "aero-bg.jpg",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "court.jpg",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "icon.jpg",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api/state.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/photos.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/photo.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/login.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/poll.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/matches.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/capture.js",
+      "use": "@vercel/node"
+    }
   ],
   "routes": [
-    { "src": "/", "dest": "/index.html" },
-    { "src": "/aero-bg.jpg", "dest": "/aero-bg.jpg" },
-    { "src": "/court.jpg", "dest": "/court.jpg" },
-    { "src": "/icon.jpg", "dest": "/icon.jpg" },
-    { "src": "/api/state", "methods": ["GET", "POST", "PUT"], "dest": "/api/state.js" },
-    { "src": "/api/photos", "methods": ["GET", "POST", "PUT"], "dest": "/api/photos.js" },
-    { "src": "/api/photo", "methods": ["GET"], "dest": "/api/photo.js" },
-    { "src": "/api/login", "methods": ["POST"], "dest": "/api/login.js" },
-    { "src": "/api/poll", "methods": ["GET", "POST"], "dest": "/api/poll.js" },
-    { "src": "/api/matches", "methods": ["GET", "POST"], "dest": "/api/matches.js" }
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/camera",
+      "dest": "/camera.html"
+    },
+    {
+      "src": "/aero-bg.jpg",
+      "dest": "/aero-bg.jpg"
+    },
+    {
+      "src": "/court.jpg",
+      "dest": "/court.jpg"
+    },
+    {
+      "src": "/icon.jpg",
+      "dest": "/icon.jpg"
+    },
+    {
+      "src": "/api/state",
+      "methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "dest": "/api/state.js"
+    },
+    {
+      "src": "/api/photos",
+      "methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "dest": "/api/photos.js"
+    },
+    {
+      "src": "/api/photo",
+      "methods": [
+        "GET"
+      ],
+      "dest": "/api/photo.js"
+    },
+    {
+      "src": "/api/login",
+      "methods": [
+        "POST"
+      ],
+      "dest": "/api/login.js"
+    },
+    {
+      "src": "/api/poll",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "dest": "/api/poll.js"
+    },
+    {
+      "src": "/api/matches",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "dest": "/api/matches.js"
+    },
+    {
+      "src": "/api/capture",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "dest": "/api/capture.js"
+    }
   ]
 }

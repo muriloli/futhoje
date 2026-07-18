@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F2A1F">
+<title>Fut Hoje — Câmera</title>
+<link rel="icon" type="image/jpeg" href="/icon.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F2A1F; --surf:#153A2B; --surf2:#1C4736; --line:#2C5A45;
+    --text:#EAF1E9; --muted:#9DBBA7; --accent:#F5C518; --ink:#123024;
+    --warn:#FF7A45; --live:#45E0B0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--text);font-family:'Bricolage Grotesque',system-ui,sans-serif;
+    line-height:1.4;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+  .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+  header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:15px;font-weight:800;letter-spacing:.02em}
+  .dot{width:11px;height:11px;border-radius:50%;background:#5C6975;flex:none}
+  .dot.on{background:var(--live);box-shadow:0 0 9px #45e0b088}
+  .dot.err{background:var(--warn)}
+  main{flex:1;display:flex;flex-direction:column;gap:12px;padding:14px;overflow:auto}
+  .stage{position:relative;border-radius:14px;overflow:hidden;background:#0A1F16;border:1px solid var(--line);
+    aspect-ratio:16/9}
+  video{width:100%;height:100%;object-fit:cover;display:block;background:#0A1F16}
+  .pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;background:var(--surf);
+    border:1px solid var(--line);color:var(--muted)}
+  .pill b{color:var(--text)}
+  .pill.good{color:var(--live);border-color:#2f6b55}
+  .pill.bad{color:var(--warn);border-color:#6b3a2a}
+  .btn{width:100%;padding:16px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:16px;
+    background:var(--accent);color:var(--ink);cursor:pointer}
+  .btn:active{transform:scale(.99)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .msg{font-size:13.5px;color:var(--muted);background:var(--surf);border:1px solid var(--line);
+    border-radius:12px;padding:12px 13px}
+  .msg.bad{color:#ffd9c9;border-color:#6b3a2a;background:#2a1a12}
+  .msg b{color:var(--text)}
+  h2{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+  .clip{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surf);
+    border:1px solid var(--line);border-radius:12px}
+  .clip .t{flex:1;min-width:0}
+  .clip .t b{display:block;font-size:14px}
+  .clip .t small{color:var(--muted);font-size:11.5px}
+  .clip a{flex:none;padding:8px 13px;border-radius:9px;background:var(--surf2);color:var(--text);
+    text-decoration:none;font-size:13px;font-weight:700;border:1px solid var(--line)}
+  .flash{position:fixed;inset:0;background:var(--accent);opacity:0;pointer-events:none;transition:opacity .18s}
+  .flash.go{opacity:.5;transition:none}
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="dot"></span>
+  <h1>Fut Hoje — Câmera</h1>
+  <span class="pill mono" id="clock" style="margin-left:auto">--:--</span>
+</header>
+
+<main>
+  <div class="stage"><video id="prev" autoplay muted playsinline></video></div>
+
+  <div class="pills">
+    <span class="pill" id="p-state">parada</span>
+    <span class="pill" id="p-buf">buffer <b>0s</b></span>
+    <span class="pill" id="p-link">sem conexão</span>
+  </div>
+
+  <button class="btn" id="start">Iniciar câmera</button>
+
+  <div class="msg" id="hint">
+    Aponte para a quadra e toque em <b>Iniciar câmera</b>. A partir daí ela grava
+    continuamente os últimos <b>60 segundos</b> — nada é salvo até alguém tocar em
+    <b>Salvar lance</b> no app. Deixe esta tela aberta e o celular <b>na tomada</b>.
+  </div>
+
+  <h2 id="clips-h" style="display:none">Lances salvos neste aparelho</h2>
+  <div id="clips" style="display:flex;flex-direction:column;gap:8px"></div>
+</main>
+
+<div class="flash" id="flash"></div>
+
+<script>
+const BUFFER_MS = 60000;   // quanto do passado fica guardado (1 minuto)
+const SLICE_MS  = 1000;    // tamanho de cada pedaço
+const POLL_MS   = 2000;    // de quanto em quanto pergunta se pediram lance
+const BEAT_MS   = 15000;   // batimento: avisa o app que a câmera está viva
+
+const $ = id => document.getElementById(id);
+let stream=null, rec=null, wake=null;
+let header=null;      // 1º pedaço: contém o cabeçalho do arquivo. Nunca descartar,
+                      // senão o vídeo montado fica ilegível.
+let chunks=[];        // janela deslizante: [{blob, t}]
+let lastReq=null, saving=false, clips=0;
+
+const setDot = c => $("dot").className = "dot" + (c?(" "+c):"");
+function pill(el, txt, cls){ const e=$(el); e.innerHTML=txt; e.className="pill"+(cls?" "+cls:""); }
+
+/* ---------- captura ---------- */
+function pickMime(){
+  const tries=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm","video/mp4"];
+  for(const t of tries) if(window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
+  return "";
+}
+
+async function start(){
+  $("start").disabled = true;
+  try{
+    if(!navigator.mediaDevices || !window.MediaRecorder) throw new Error("Este navegador não grava vídeo.");
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} },
+      audio:true
+    });
+    $("prev").srcObject = stream;
+
+    const mimeType = pickMime();
+    rec = new MediaRecorder(stream, mimeType ? {mimeType, videoBitsPerSecond:1500000} : {});
+    rec.ondataavailable = e=>{
+      if(!e.data || !e.data.size) return;
+      if(!header){ header = e.data; return; }        // guarda o cabeçalho pra sempre
+      chunks.push({blob:e.data, t:Date.now()});
+      const corte = Date.now() - BUFFER_MS;
+      while(chunks.length && chunks[0].t < corte) chunks.shift();
+    };
+    rec.onerror = ()=> fail("A gravação falhou. Recarregue a página.");
+    rec.start(SLICE_MS);
+
+    setDot("on"); pill("p-state","gravando","good");
+    $("start").style.display="none";
+    $("hint").innerHTML = "Tudo certo. <b>Não bloqueie a tela nem troque de app</b> — o navegador "+
+      "interrompe a gravação. Mantenha na tomada.";
+    keepAwake();
+    setInterval(tickBuffer, 500);
+    setInterval(poll, POLL_MS);
+    setInterval(beat, BEAT_MS);
+    poll(); beat();
+  }catch(err){
+    $("start").disabled=false;
+    const msg = String(err && err.message || err);
+    if(!window.isSecureContext) fail("A câmera só funciona em <b>HTTPS</b>. Abra pelo endereço do site publicado, não pelo IP local.");
+    else if(/denied|NotAllowed/i.test(msg)) fail("Permissão de câmera negada. Libere nas configurações do navegador e recarregue.");
+    else fail("Não consegui abrir a câmera: "+msg);
+  }
+}
+
+function fail(html){ setDot("err"); pill("p-state","erro","bad"); const h=$("hint"); h.className="msg bad"; h.innerHTML=html; }
+
+function tickBuffer(){
+  const s = chunks.length ? Math.round((Date.now()-chunks[0].t)/1000) : 0;
+  $("p-buf").innerHTML = "buffer <b>"+s+"s</b>";
+  const d=new Date(); $("clock").textContent = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  if(rec && rec.state!=="recording"){ setDot("err"); pill("p-state","pausada","bad"); }
+}
+
+/* ---------- canal com o app ---------- */
+async function poll(){
+  try{
+    const r = await fetch("/api/capture",{cache:"no-store"});
+    const j = await r.json();
+    pill("p-link","conectado","good");
+    if(lastReq===null){ lastReq = j.req || ""; return; }   // 1ª leitura: só marca onde estamos
+    if(j.req && j.req!==lastReq){ lastReq=j.req; saveClip(); }
+  }catch(e){ pill("p-link","sem conexão","bad"); }
+}
+async function beat(){
+  try{ await fetch("/api/capture",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"alive"})}); }catch(e){}
+}
+
+/* ---------- salvar o buffer ---------- */
+function saveClip(){
+  if(saving || !header || !chunks.length) return;
+  saving = true;
+  const f=$("flash"); f.classList.add("go"); setTimeout(()=>f.classList.remove("go"),60);
+
+  const partes = [header, ...chunks.map(c=>c.blob)];
+  const tipo = (rec && rec.mimeType) || "video/webm";
+  const blob = new Blob(partes, {type:tipo});
+  const secs = Math.round((Date.now()-chunks[0].t)/1000);
+  const ext  = tipo.includes("mp4") ? "mp4" : "webm";
+  const d=new Date();
+  const stamp = [d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,"0")).join("-");
+  const nome = `lance-${stamp}.${ext}`;
+  const url = URL.createObjectURL(blob);
+
+  // baixa no próprio aparelho
+  const a=document.createElement("a"); a.href=url; a.download=nome;
+  document.body.appendChild(a); a.click(); a.remove();
+
+  // e deixa listado, caso o download não tenha ido (iOS costuma abrir em vez de baixar)
+  clips++;
+  $("clips-h").style.display="";
+  const row=document.createElement("div"); row.className="clip";
+  row.innerHTML = `<div class="t"><b>${nome}</b><small>${secs}s · ${(blob.size/1048576).toFixed(1)} MB</small></div>`;
+  const link=document.createElement("a"); link.href=url; link.download=nome; link.textContent="Baixar";
+  row.appendChild(link);
+  $("clips").prepend(row);
+
+  setTimeout(()=>{ saving=false; }, 1500);
+}
+
+/* ---------- tela acesa ---------- */
+async function keepAwake(){
+  try{ if("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") keepAwake(); });
+
+$("start").addEventListener("click", start);
+if(!window.isSecureContext) fail("A câmera só funciona em <b>HTTPS</b>. Abra pelo endereço do site publicado (https://…), não pelo IP local.");
+</script>
+</body>
+</html>

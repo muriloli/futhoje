@@ -801,6 +801,12 @@
         <button class="btn ghost block" id="btn-endmatch">Encerrar</button>
       </div>
 
+      <div class="section-head" style="margin-top:22px"><h2>Câmera da quadra</h2><span class="meta" id="cam-meta">desligada</span></div>
+      <div class="card" style="padding:14px">
+        <button class="btn primary block" id="btn-shot">Salvar lance</button>
+        <p class="tip" style="margin-top:10px">Guarda o <b>último minuto</b> do que a câmera já filmou — dá pra apertar depois do gol. O vídeo fica salvo no celular que está filmando. Para ligar a câmera, abra <b>/camera</b> no celular antigo.</p>
+      </div>
+
       <div class="scorers">
         <div class="section-head" style="margin-top:22px"><h2>Gols da partida</h2></div>
         <div class="card" id="scorer-list"></div>
@@ -1611,6 +1617,37 @@ function openCard(id){
   cv.classList.add("show");
   attachTilt(cv.querySelector(".fcard"));
 }
+/* ===================== CÂMERA DA QUADRA =====================
+   Nenhum vídeo passa por aqui: o celular-câmera mantém os últimos 60s num
+   buffer e este botão só avisa "salva agora". Como a captura é retroativa,
+   o atraso do aviso (até ~2s) não perde o lance. */
+let camSeenAt = 0;
+document.getElementById("btn-shot").addEventListener("click", async ()=>{
+  if(!requireEdit()) return;
+  if(!camSeenAt || Date.now()-camSeenAt > 60000){
+    toast("Câmera não está ligada — abra /camera no celular que vai filmar."); return;
+  }
+  const b = document.getElementById("btn-shot");
+  b.disabled = true;
+  try{
+    const r = await fetch("/api/capture",{method:"POST",headers:matchHeaders(),body:JSON.stringify({action:"shot"})});
+    toast(r.ok ? "Lance salvo no celular da câmera" : "Não consegui avisar a câmera");
+  }catch(e){ toast("Sem conexão com a câmera"); }
+  setTimeout(()=>{ b.disabled=false; }, 1200);
+});
+// mostra se a câmera está de pé (ela manda um batimento a cada 15s)
+async function refreshCam(){
+  try{
+    const r = await fetch("/api/capture",{cache:"no-store"});
+    const j = await r.json();
+    camSeenAt = j.camSeen || 0;
+  }catch(e){}
+  const viva = camSeenAt && Date.now()-camSeenAt < 60000;
+  const el = document.getElementById("cam-meta");
+  if(el){ el.textContent = viva ? "filmando" : "desligada"; el.style.color = viva ? "var(--ala)" : ""; }
+}
+refreshCam(); setInterval(refreshCam, 20000);
+
 /* Espessura da carta: ela é um plano só, não tem lateral. Empilhamos camadas 1px
    atrás da face — ao inclinar, a pilha aparece como a borda/lateral da carta.
    1px de passo evita "listras" no ângulo máximo de giro (26°). */

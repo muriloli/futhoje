@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import { readState, writeState, readPhotoMeta, readPhotoOne, writePhoto, deletePhoto, readMatches, writeMatch, deleteMatch, clearMatches } from "./lib/state.js";
 import { isAdmin, checkPassword } from "./lib/auth.js";
 import { pollAction } from "./lib/poll.js";
+import { captureAction } from "./lib/capture.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -44,6 +45,13 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/poll") {
       const body = req.method === "POST" ? JSON.parse((await readBody(req)) || "{}") : null;
       const result = await pollAction(req.method, body, isAdmin(req));
+      res.writeHead(result.status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      return res.end(JSON.stringify(result.body));
+    }
+
+    if (url.pathname === "/api/capture") {
+      const body = req.method === "POST" ? JSON.parse((await readBody(req)) || "{}") : null;
+      const result = await captureAction(req.method, body, isAdmin(req));
       res.writeHead(result.status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
       return res.end(JSON.stringify(result.body));
     }
