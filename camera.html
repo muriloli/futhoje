@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0F2A1F">
+<meta name="theme-color" content="#0A1F16">
 <title>Fut Hoje — Câmera</title>
 <link rel="icon" type="image/jpeg" href="/icon.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,87 +11,149 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0F2A1F; --surf:#153A2B; --surf2:#1C4736; --line:#2C5A45;
+    --bg:#0A1F16; --surf:#153A2B; --surf2:#1C4736; --line:#2C5A45;
     --text:#EAF1E9; --muted:#9DBBA7; --accent:#F5C518; --ink:#123024;
     --warn:#FF7A45; --live:#45E0B0;
+    --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%}
-  body{background:var(--bg);color:var(--text);font-family:'Bricolage Grotesque',system-ui,sans-serif;
-    line-height:1.4;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+  html,body{margin:0;height:100%;overflow:hidden;background:#000}
+  body{color:var(--text);font-family:'Bricolage Grotesque',system-ui,sans-serif;line-height:1.4;
+    -webkit-font-smoothing:antialiased}
   .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
-  header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
-  header h1{margin:0;font-size:15px;font-weight:800;letter-spacing:.02em}
-  .dot{width:11px;height:11px;border-radius:50%;background:#5C6975;flex:none}
-  .dot.on{background:var(--live);box-shadow:0 0 9px #45e0b088}
-  .dot.err{background:var(--warn)}
-  main{flex:1;display:flex;flex-direction:column;gap:12px;padding:14px;overflow:auto}
-  .stage{position:relative;border-radius:14px;overflow:hidden;background:#0A1F16;border:1px solid var(--line);
-    aspect-ratio:16/9}
-  video{width:100%;height:100%;object-fit:cover;display:block;background:#0A1F16}
-  .pills{display:flex;gap:8px;flex-wrap:wrap}
+
+  /* ---------- palco: vídeo ocupa tudo ---------- */
+  #prev{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000;display:block}
+  #prev.espelho{transform:scaleX(-1)}   /* frontal: espelha, senão dá estranheza */
+
+  /* ---------- HUD mínimo ---------- */
+  .hud{position:fixed;top:calc(12px + var(--st));left:12px;right:12px;display:flex;align-items:center;
+    gap:8px;pointer-events:none;z-index:3}
+  .rec{display:flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+    background:#0009;backdrop-filter:blur(8px);font-size:11.5px;font-weight:800;letter-spacing:.1em}
+  .rec i{width:8px;height:8px;border-radius:50%;background:var(--live);display:block}
+  .rec.live i{animation:pulse 1.6s ease-in-out infinite}
+  .rec.off i{background:#8b98a5;animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .tail{margin-left:auto;padding:6px 12px;border-radius:999px;background:var(--accent);color:var(--ink);
+    font-size:12px;font-weight:800;display:none}
+  .tail.on{display:block}
+
+  /* aviso de problema: aparece MESMO no modo limpo */
+  .alert{position:fixed;left:12px;right:12px;top:calc(52px + var(--st));z-index:4;display:none;
+    background:#3a1d14;border:1px solid #7a3a22;color:#ffd9c9;border-radius:12px;padding:11px 13px;
+    font-size:13px;font-weight:600}
+  .alert.on{display:block}
+  .alert b{color:#fff}
+
+  /* ---------- botões flutuantes ---------- */
+  .ctrls{position:fixed;right:14px;bottom:calc(18px + var(--sb));display:flex;flex-direction:column;
+    gap:11px;z-index:3}
+  .fab{width:50px;height:50px;border-radius:50%;border:1px solid #ffffff26;background:#000000a6;
+    backdrop-filter:blur(10px);color:#fff;display:grid;place-items:center;cursor:pointer}
+  .fab:active{transform:scale(.92)}
+  .fab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round}
+  .fab[disabled]{opacity:.4}
+
+  /* ---------- botão de iniciar ---------- */
+  .start-wrap{position:fixed;inset:0;z-index:5;display:grid;place-items:center;padding:24px;
+    background:linear-gradient(#0A1F16dd,#0A1F16f2)}
+  .start-wrap.hide{display:none}
+  .start-box{max-width:340px;text-align:center}
+  .start-box h1{font-size:21px;font-weight:800;margin:0 0 8px}
+  .start-box p{color:var(--muted);font-size:14px;margin:0 0 20px}
+  .btn{width:100%;padding:16px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:16px;
+    background:var(--accent);color:var(--ink);cursor:pointer}
+  .btn:active{transform:scale(.99)}
+  .btn[disabled]{opacity:.5}
+
+  /* ---------- painel de informações ---------- */
+  .scrim{position:fixed;inset:0;background:#000a;z-index:6;opacity:0;pointer-events:none;transition:opacity .2s}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--bg);
+    border-top:1px solid var(--line);border-radius:20px 20px 0 0;padding:16px 16px calc(20px + var(--sb));
+    transform:translateY(102%);transition:transform .26s cubic-bezier(.2,.8,.3,1);max-height:82vh;overflow:auto}
+  .sheet.on{transform:none}
+  .grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .pill{font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;background:var(--surf);
     border:1px solid var(--line);color:var(--muted)}
   .pill b{color:var(--text)}
   .pill.good{color:var(--live);border-color:#2f6b55}
   .pill.bad{color:var(--warn);border-color:#6b3a2a}
-  .btn{width:100%;padding:16px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:16px;
-    background:var(--accent);color:var(--ink);cursor:pointer}
-  .btn:active{transform:scale(.99)}
   .msg{font-size:13.5px;color:var(--muted);background:var(--surf);border:1px solid var(--line);
     border-radius:12px;padding:12px 13px}
-  .msg.bad{color:#ffd9c9;border-color:#6b3a2a;background:#2a1a12}
   .msg b{color:var(--text)}
-  h2{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+  h2{font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+    margin:16px 0 8px}
   .clip{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surf);
-    border:1px solid var(--line);border-radius:12px}
+    border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
   .clip .t{flex:1;min-width:0}
   .clip .t b{display:block;font-size:14px}
   .clip .t small{color:var(--muted);font-size:11.5px}
   .clip a{flex:none;padding:8px 13px;border-radius:9px;background:var(--surf2);color:var(--text);
     text-decoration:none;font-size:13px;font-weight:700;border:1px solid var(--line)}
-  .flash{position:fixed;inset:0;background:var(--accent);opacity:0;pointer-events:none;transition:opacity .18s}
+
+  .flash{position:fixed;inset:0;background:var(--accent);opacity:0;pointer-events:none;transition:opacity .18s;z-index:8}
   .flash.go{opacity:.5;transition:none}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<header>
-  <span class="dot" id="dot"></span>
-  <h1>Fut Hoje — Câmera</h1>
-  <span class="pill mono" id="clock" style="margin-left:auto">--:--</span>
-</header>
 
-<main>
-  <div class="stage"><video id="prev" autoplay muted playsinline></video></div>
+<video id="prev" autoplay muted playsinline></video>
 
+<div class="hud">
+  <span class="rec off" id="rec"><i></i><span id="rec-txt">PARADA</span></span>
+  <span class="tail" id="tail"></span>
+</div>
+
+<div class="alert" id="alert"></div>
+
+<div class="ctrls">
+  <button class="fab" id="flip" aria-label="Trocar câmera" disabled>
+    <svg viewBox="0 0 24 24"><path d="M3 7h3l2-2h8l2 2h3v12H3z"/><circle cx="12" cy="13" r="3.2"/><path d="M9.5 13H15M13.2 11.2 15 13l-1.8 1.8"/></svg>
+  </button>
+  <button class="fab" id="info" aria-label="Informações">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+  </button>
+</div>
+
+<div class="start-wrap" id="start-wrap">
+  <div class="start-box">
+    <h1>Câmera da quadra</h1>
+    <p>Aponte para a quadra. Ela grava continuamente, mas só salva quando alguém tocar em <b>Salvar lance</b> no app.</p>
+    <button class="btn" id="start">Iniciar câmera</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
   <div class="pills">
     <span class="pill" id="p-state">parada</span>
     <span class="pill" id="p-buf">guardado <b>0s</b></span>
     <span class="pill" id="p-link">sem conexão</span>
+    <span class="pill" id="p-cam">traseira</span>
   </div>
-
-  <button class="btn" id="start">Iniciar câmera</button>
-
   <div class="msg" id="hint">
-    Aponte para a quadra e toque em <b>Iniciar câmera</b>. A partir daí ela grava
-    continuamente — nada é salvo até alguém tocar em <b>Salvar lance</b> no app.
-    Deixe esta tela aberta e o celular <b>na tomada</b>.
+    Deixe esta tela aberta e o celular <b>na tomada</b>. Se bloquear a tela ou trocar
+    de app, o navegador interrompe a gravação.
   </div>
-
   <h2 id="clips-h" style="display:none">Lances salvos neste aparelho</h2>
-  <div id="clips" style="display:flex;flex-direction:column;gap:8px"></div>
-</main>
+  <div id="clips"></div>
+</div>
 
 <div class="flash" id="flash"></div>
 
 <script>
 /* Dois gravadores defasados, em vez de recortar um só.
    Emendar pedaços de instantes diferentes NAO funciona: o arquivo fica com um
-   salto de timestamp no meio e o player para ali (o vídeo "acaba" nos primeiros
-   segundos). Consertar exigiria reescrever os timestamps — um muxer inteiro.
-   Aqui cada gravador produz um arquivo completo e válido do seu próprio início
-   até agora. Defasados em 60s, sempre existe um com 60~120s acumulados: na hora
-   de salvar, paramos o mais antigo e usamos o arquivo dele, inteiro. */
+   salto de timestamp no meio e o player para ali. Aqui cada gravador produz um
+   arquivo completo e válido do seu próprio início até agora. Defasados em 60s,
+   sempre existe um com 60~120s acumulados: ao salvar, paramos o mais antigo e
+   usamos o arquivo dele, inteiro. */
 const SEG_MS   = 120000;   // cada gravador roda 2 min e recicla
 const OFF_MS   = 60000;    // o segundo entra defasado 1 min
 const TAIL_MS  = 5000;     // segue gravando depois do toque (pega a comemoração)
@@ -100,24 +162,21 @@ const POLL_MS  = 2000;     // de quanto em quanto pergunta se pediram lance
 const BEAT_MS  = 15000;    // batimento: avisa o app que a câmera está viva
 
 const $ = id => document.getElementById(id);
-let stream=null, recOpts=null, wake=null;
-let lastReq=null, saving=false, fmtLabel="";
+let stream=null, recOpts=null, wake=null, mime="";
+let lastReq=null, saving=false, fmtLabel="", facing="environment", trocando=false;
 const slots = [slot("A"), slot("B")];
 
 function slot(nome){ return {nome, rec:null, chunks:[], startedAt:0, timer:null}; }
-const setDot = c => $("dot").className = "dot" + (c?(" "+c):"");
 function pill(el, txt, cls){ const e=$(el); e.innerHTML=txt; e.className="pill"+(cls?" "+cls:""); }
-function fail(html){ setDot("err"); pill("p-state","erro","bad"); const h=$("hint"); h.className="msg bad"; h.innerHTML=html; }
+function alerta(html){ const a=$("alert"); if(!html){ a.className="alert"; return; } a.className="alert on"; a.innerHTML=html; }
+function rec(txt, live){ $("rec-txt").textContent=txt; $("rec").className="rec"+(live?" live":" off"); }
 
 function pickMime(){
   // MP4 primeiro: abre na Galeria, no iPhone e no WhatsApp. WebM só toca em
   // navegador/VLC. Aparelho antigo costuma não ter MP4 — aí cai no WebM mesmo.
   const tries=[
     'video/mp4;codecs="avc1.42E01E"',   // H.264 baseline: o mais compatível
-    'video/mp4',
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm'
+    'video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'
   ];
   for(const t of tries) if(window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
   return "";
@@ -134,38 +193,52 @@ function startSlot(s){
   s.rec = new MediaRecorder(stream, recOpts);
   s.startedAt = Date.now();
   s.rec.ondataavailable = e => { if(e.data && e.data.size) s.chunks.push(e.data); };
-  s.rec.onerror = () => fail("A gravação falhou. Recarregue a página.");
+  s.rec.onerror = () => alerta("A gravação falhou. <b>Recarregue a página.</b>");
   s.rec.start(SLICE_MS);
   clearTimeout(s.timer);
   s.timer = setTimeout(()=>startSlot(s), SEG_MS);   // recicla pra memória não crescer
 }
-
+function pararTodos(){
+  for(const s of slots){
+    clearTimeout(s.timer);
+    if(s.rec){ s.rec.ondataavailable=null; s.rec.onstop=null;
+      if(s.rec.state!=="inactive"){ try{ s.rec.stop(); }catch(e){} } }
+    s.rec=null; s.chunks=[]; s.startedAt=0;
+  }
+}
+function ligarGravadores(){
+  startSlot(slots[0]);
+  setTimeout(()=>{ if(stream) startSlot(slots[1]); }, OFF_MS);
+}
 function ativos(){ return slots.filter(s=>s.rec && s.rec.state==="recording"); }
 function maisAntigo(){ return ativos().sort((a,b)=>a.startedAt-b.startedAt)[0] || null; }
 
-/* ---------- início ---------- */
+/* ---------- abrir a câmera ---------- */
+async function abrirStream(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());   // solta antes: alguns aparelhos
+  stream = await navigator.mediaDevices.getUserMedia({  // não abrem as duas ao mesmo tempo
+    video:{ facingMode:{ideal:facing}, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} },
+    audio:true
+  });
+  const v=$("prev"); v.srcObject = stream;
+  v.classList.toggle("espelho", facing==="user");
+  pill("p-cam", facing==="user" ? "frontal" : "traseira");
+}
+
 async function start(){
   $("start").disabled = true;
   try{
     if(!navigator.mediaDevices || !window.MediaRecorder) throw new Error("Este navegador não grava vídeo.");
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} },
-      audio:true
-    });
-    $("prev").srcObject = stream;
+    await abrirStream();
+    mime = pickMime();
+    recOpts = mime ? {mimeType:mime, videoBitsPerSecond:1500000} : {};
+    fmtLabel = mime.includes("mp4") ? "MP4" : "WebM";
 
-    const mimeType = pickMime();
-    recOpts = mimeType ? {mimeType, videoBitsPerSecond:1500000} : {};
-
-    startSlot(slots[0]);
-    setTimeout(()=>startSlot(slots[1]), OFF_MS);   // o 2º entra defasado
-
-    fmtLabel = (mimeType||"").includes("mp4") ? "MP4" : "WebM";
-    setDot("on"); pill("p-state","gravando · <b>"+fmtLabel+"</b>","good");
-    $("start").style.display="none";
-    $("hint").innerHTML = "Tudo certo. <b>Não bloqueie a tela nem troque de app</b> — o navegador "+
-      "interrompe a gravação. Mantenha na tomada. Cada lance salvo tem entre <b>1 e 2 minutos</b> "+
-      "e termina no instante em que você apertou.";
+    ligarGravadores();
+    $("start-wrap").classList.add("hide");
+    $("flip").disabled = false;
+    rec("REC", true);
+    pill("p-state","gravando · <b>"+fmtLabel+"</b>","good");
     keepAwake();
     setInterval(tick, 500);
     setInterval(poll, POLL_MS);
@@ -174,19 +247,40 @@ async function start(){
   }catch(err){
     $("start").disabled=false;
     const msg = String(err && err.message || err);
-    if(!window.isSecureContext) fail("A câmera só funciona em <b>HTTPS</b>. Abra pelo endereço do site publicado, não pelo IP local.");
-    else if(/denied|NotAllowed/i.test(msg)) fail("Permissão de câmera negada. Libere nas configurações do navegador e recarregue.");
-    else fail("Não consegui abrir a câmera: "+msg);
+    if(!window.isSecureContext) alerta("A câmera só funciona em <b>HTTPS</b>. Abra pelo endereço publicado, não pelo IP local.");
+    else if(/denied|NotAllowed/i.test(msg)) alerta("Permissão de câmera negada. Libere nas configurações do navegador e recarregue.");
+    else alerta("Não consegui abrir a câmera: "+msg);
   }
+}
+
+/* ---------- trocar frontal/traseira ---------- */
+async function flip(){
+  if(trocando || saving || !stream) return;
+  trocando = true; $("flip").disabled = true;
+  const anterior = facing;
+  facing = facing==="environment" ? "user" : "environment";
+  pararTodos();                       // o que já foi gravado era da outra câmera
+  try{
+    await abrirStream();
+    ligarGravadores();
+    alerta("");
+  }catch(e){
+    facing = anterior;                // não conseguiu: volta pra que estava
+    try{ await abrirStream(); ligarGravadores(); alerta("Este aparelho não tem a outra câmera."); }
+    catch(e2){ alerta("Perdi a câmera. <b>Recarregue a página.</b>"); rec("PARADA", false); }
+  }
+  trocando = false; $("flip").disabled = false;
 }
 
 function tick(){
   const s = maisAntigo();
   const segs = s ? Math.round((Date.now()-s.startedAt)/1000) : 0;
   $("p-buf").innerHTML = "guardado <b>"+segs+"s</b>";
-  const d=new Date();
-  $("clock").textContent = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
-  if(!ativos().length && stream){ setDot("err"); pill("p-state","pausada","bad"); }
+  if(stream && !ativos().length && !trocando){
+    rec("PAUSADA", false);
+    pill("p-state","pausada","bad");
+    alerta("A gravação <b>parou</b> — a tela bloqueou ou você saiu do app. Toque aqui e mantenha esta página aberta.");
+  }
 }
 
 /* ---------- canal com o app ---------- */
@@ -205,7 +299,7 @@ async function beat(){
 
 /* ---------- salvar ---------- */
 function saveClip(){
-  if(saving) return;
+  if(saving || trocando) return;
   const s = maisAntigo();
   if(!s) return;
   saving = true;
@@ -214,23 +308,26 @@ function saveClip(){
   clearTimeout(s.timer);
   const f=$("flash"); f.classList.add("go"); setTimeout(()=>f.classList.remove("go"),60);
 
-  const rec = s.rec, chunks = s.chunks;
-  rec.onstop = ()=>{                       // stop() descarrega o último pedaço antes disto
-    const tipo = rec.mimeType || "video/webm";
+  const r = s.rec, chunks = s.chunks;
+  r.onstop = ()=>{                       // stop() descarrega o último pedaço antes disto
+    const tipo = r.mimeType || mime || "video/webm";
     const segs = Math.round((Date.now()-s.startedAt)/1000);   // conta já com a cauda
     baixar(new Blob(chunks,{type:tipo}), segs, tipo);
+    $("tail").classList.remove("on");
     pill("p-state","gravando · <b>"+fmtLabel+"</b>","good");
-    startSlot(s);                          // volta a cobrir imediatamente
+    startSlot(s);                        // volta a cobrir imediatamente
     setTimeout(()=>{ saving=false; }, 800);
   };
 
   let resta = Math.round(TAIL_MS/1000);
-  const mostra = ()=> pill("p-state","gravando o fim · <b>"+resta+"s</b>","good");
+  const t=$("tail"); t.classList.add("on");
+  const mostra = ()=>{ t.textContent = "gravando o fim · "+resta+"s";
+                       pill("p-state","gravando o fim · <b>"+resta+"s</b>","good"); };
   mostra();
   const iv = setInterval(()=>{ if(--resta > 0) mostra(); }, 1000);
   setTimeout(()=>{
     clearInterval(iv);
-    try{ rec.stop(); }catch(e){ saving=false; }
+    try{ r.stop(); }catch(e){ saving=false; t.classList.remove("on"); }
   }, TAIL_MS);
 }
 
@@ -253,14 +350,24 @@ function baixar(blob, segs, tipo){
   $("clips").prepend(row);
 }
 
+/* ---------- painel ---------- */
+function sheet(abrir){
+  $("sheet").classList.toggle("on", abrir);
+  $("scrim").classList.toggle("on", abrir);
+}
+$("info").addEventListener("click", ()=> sheet(!$("sheet").classList.contains("on")));
+$("scrim").addEventListener("click", ()=> sheet(false));
+$("flip").addEventListener("click", flip);
+$("start").addEventListener("click", start);
+$("alert").addEventListener("click", ()=> alerta(""));
+
 /* ---------- tela acesa ---------- */
 async function keepAwake(){
   try{ if("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); }catch(e){}
 }
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") keepAwake(); });
 
-$("start").addEventListener("click", start);
-if(!window.isSecureContext) fail("A câmera só funciona em <b>HTTPS</b>. Abra pelo endereço do site publicado (https://…), não pelo IP local.");
+if(!window.isSecureContext) alerta("A câmera só funciona em <b>HTTPS</b>. Abra pelo endereço publicado (https://…), não pelo IP local.");
 </script>
 </body>
 </html>
