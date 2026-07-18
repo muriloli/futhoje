@@ -38,7 +38,6 @@
   .btn{width:100%;padding:16px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:16px;
     background:var(--accent);color:var(--ink);cursor:pointer}
   .btn:active{transform:scale(.99)}
-  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
   .msg{font-size:13.5px;color:var(--muted);background:var(--surf);border:1px solid var(--line);
     border-radius:12px;padding:12px 13px}
   .msg.bad{color:#ffd9c9;border-color:#6b3a2a;background:#2a1a12}
@@ -67,7 +66,7 @@
 
   <div class="pills">
     <span class="pill" id="p-state">parada</span>
-    <span class="pill" id="p-buf">buffer <b>0s</b></span>
+    <span class="pill" id="p-buf">guardado <b>0s</b></span>
     <span class="pill" id="p-link">sem conexão</span>
   </div>
 
@@ -75,8 +74,8 @@
 
   <div class="msg" id="hint">
     Aponte para a quadra e toque em <b>Iniciar câmera</b>. A partir daí ela grava
-    continuamente os últimos <b>60 segundos</b> — nada é salvo até alguém tocar em
-    <b>Salvar lance</b> no app. Deixe esta tela aberta e o celular <b>na tomada</b>.
+    continuamente — nada é salvo até alguém tocar em <b>Salvar lance</b> no app.
+    Deixe esta tela aberta e o celular <b>na tomada</b>.
   </div>
 
   <h2 id="clips-h" style="display:none">Lances salvos neste aparelho</h2>
@@ -86,27 +85,32 @@
 <div class="flash" id="flash"></div>
 
 <script>
-const BUFFER_MS = 60000;   // quanto do passado fica guardado (1 minuto)
-const SLICE_MS  = 1000;    // tamanho de cada pedaço
-const POLL_MS   = 2000;    // de quanto em quanto pergunta se pediram lance
-const BEAT_MS   = 15000;   // batimento: avisa o app que a câmera está viva
+/* Dois gravadores defasados, em vez de recortar um só.
+   Emendar pedaços de instantes diferentes NAO funciona: o arquivo fica com um
+   salto de timestamp no meio e o player para ali (o vídeo "acaba" nos primeiros
+   segundos). Consertar exigiria reescrever os timestamps — um muxer inteiro.
+   Aqui cada gravador produz um arquivo completo e válido do seu próprio início
+   até agora. Defasados em 60s, sempre existe um com 60~120s acumulados: na hora
+   de salvar, paramos o mais antigo e usamos o arquivo dele, inteiro. */
+const SEG_MS   = 120000;   // cada gravador roda 2 min e recicla
+const OFF_MS   = 60000;    // o segundo entra defasado 1 min
+const SLICE_MS = 1000;
+const POLL_MS  = 2000;     // de quanto em quanto pergunta se pediram lance
+const BEAT_MS  = 15000;    // batimento: avisa o app que a câmera está viva
 
 const $ = id => document.getElementById(id);
-let stream=null, rec=null, wake=null;
-let header=null;      // 1º pedaço: contém o cabeçalho do arquivo. Nunca descartar,
-                      // senão o vídeo montado fica ilegível.
-let chunks=[];        // janela deslizante: [{blob, t}]
-let lastReq=null, saving=false, clips=0;
+let stream=null, recOpts=null, wake=null;
+let lastReq=null, saving=false;
+const slots = [slot("A"), slot("B")];
 
+function slot(nome){ return {nome, rec:null, chunks:[], startedAt:0, timer:null}; }
 const setDot = c => $("dot").className = "dot" + (c?(" "+c):"");
 function pill(el, txt, cls){ const e=$(el); e.innerHTML=txt; e.className="pill"+(cls?" "+cls:""); }
+function fail(html){ setDot("err"); pill("p-state","erro","bad"); const h=$("hint"); h.className="msg bad"; h.innerHTML=html; }
 
-/* ---------- captura ---------- */
 function pickMime(){
   // MP4 primeiro: abre na Galeria, no iPhone e no WhatsApp. WebM só toca em
-  // navegador/VLC. Os dois servem ao buffer, porque em ambos o 1º pedaço traz o
-  // cabeçalho e os seguintes são fragmentos independentes (fMP4 / clusters WebM).
-  // Aparelho antigo costuma não ter MP4 no MediaRecorder — aí cai no WebM mesmo.
+  // navegador/VLC. Aparelho antigo costuma não ter MP4 — aí cai no WebM mesmo.
   const tries=[
     'video/mp4;codecs="avc1.42E01E"',   // H.264 baseline: o mais compatível
     'video/mp4',
@@ -118,6 +122,27 @@ function pickMime(){
   return "";
 }
 
+/* ---------- ciclo de vida de um gravador ---------- */
+function startSlot(s){
+  const antigo = s.rec;
+  if(antigo){                                  // solta o anterior sem sujar o novo array
+    antigo.ondataavailable = null; antigo.onstop = null;
+    if(antigo.state !== "inactive"){ try{ antigo.stop(); }catch(e){} }
+  }
+  s.chunks = [];
+  s.rec = new MediaRecorder(stream, recOpts);
+  s.startedAt = Date.now();
+  s.rec.ondataavailable = e => { if(e.data && e.data.size) s.chunks.push(e.data); };
+  s.rec.onerror = () => fail("A gravação falhou. Recarregue a página.");
+  s.rec.start(SLICE_MS);
+  clearTimeout(s.timer);
+  s.timer = setTimeout(()=>startSlot(s), SEG_MS);   // recicla pra memória não crescer
+}
+
+function ativos(){ return slots.filter(s=>s.rec && s.rec.state==="recording"); }
+function maisAntigo(){ return ativos().sort((a,b)=>a.startedAt-b.startedAt)[0] || null; }
+
+/* ---------- início ---------- */
 async function start(){
   $("start").disabled = true;
   try{
@@ -129,24 +154,19 @@ async function start(){
     $("prev").srcObject = stream;
 
     const mimeType = pickMime();
-    rec = new MediaRecorder(stream, mimeType ? {mimeType, videoBitsPerSecond:1500000} : {});
-    rec.ondataavailable = e=>{
-      if(!e.data || !e.data.size) return;
-      if(!header){ header = e.data; return; }        // guarda o cabeçalho pra sempre
-      chunks.push({blob:e.data, t:Date.now()});
-      const corte = Date.now() - BUFFER_MS;
-      while(chunks.length && chunks[0].t < corte) chunks.shift();
-    };
-    rec.onerror = ()=> fail("A gravação falhou. Recarregue a página.");
-    rec.start(SLICE_MS);
+    recOpts = mimeType ? {mimeType, videoBitsPerSecond:1500000} : {};
 
-    const fmt = ((rec.mimeType||mimeType||"").includes("mp4")) ? "MP4" : "WebM";
+    startSlot(slots[0]);
+    setTimeout(()=>startSlot(slots[1]), OFF_MS);   // o 2º entra defasado
+
+    const fmt = (mimeType||"").includes("mp4") ? "MP4" : "WebM";
     setDot("on"); pill("p-state","gravando · <b>"+fmt+"</b>","good");
     $("start").style.display="none";
     $("hint").innerHTML = "Tudo certo. <b>Não bloqueie a tela nem troque de app</b> — o navegador "+
-      "interrompe a gravação. Mantenha na tomada.";
+      "interrompe a gravação. Mantenha na tomada. Cada lance salvo tem entre <b>1 e 2 minutos</b> "+
+      "e termina no instante em que você apertou.";
     keepAwake();
-    setInterval(tickBuffer, 500);
+    setInterval(tick, 500);
     setInterval(poll, POLL_MS);
     setInterval(beat, BEAT_MS);
     poll(); beat();
@@ -159,13 +179,13 @@ async function start(){
   }
 }
 
-function fail(html){ setDot("err"); pill("p-state","erro","bad"); const h=$("hint"); h.className="msg bad"; h.innerHTML=html; }
-
-function tickBuffer(){
-  const s = chunks.length ? Math.round((Date.now()-chunks[0].t)/1000) : 0;
-  $("p-buf").innerHTML = "buffer <b>"+s+"s</b>";
-  const d=new Date(); $("clock").textContent = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
-  if(rec && rec.state!=="recording"){ setDot("err"); pill("p-state","pausada","bad"); }
+function tick(){
+  const s = maisAntigo();
+  const segs = s ? Math.round((Date.now()-s.startedAt)/1000) : 0;
+  $("p-buf").innerHTML = "guardado <b>"+segs+"s</b>";
+  const d=new Date();
+  $("clock").textContent = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  if(!ativos().length && stream){ setDot("err"); pill("p-state","pausada","bad"); }
 }
 
 /* ---------- canal com o app ---------- */
@@ -182,36 +202,43 @@ async function beat(){
   try{ await fetch("/api/capture",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"alive"})}); }catch(e){}
 }
 
-/* ---------- salvar o buffer ---------- */
+/* ---------- salvar ---------- */
 function saveClip(){
-  if(saving || !header || !chunks.length) return;
+  if(saving) return;
+  const s = maisAntigo();
+  if(!s) return;
   saving = true;
   const f=$("flash"); f.classList.add("go"); setTimeout(()=>f.classList.remove("go"),60);
 
-  const partes = [header, ...chunks.map(c=>c.blob)];
-  const tipo = (rec && rec.mimeType) || "video/webm";
-  const blob = new Blob(partes, {type:tipo});
-  const secs = Math.round((Date.now()-chunks[0].t)/1000);
-  const ext  = tipo.includes("mp4") ? "mp4" : "webm";
+  const rec = s.rec, chunks = s.chunks;
+  const segs = Math.round((Date.now()-s.startedAt)/1000);
+  rec.onstop = ()=>{                       // stop() descarrega o último pedaço antes disto
+    const tipo = rec.mimeType || "video/webm";
+    const blob = new Blob(chunks, {type:tipo});
+    baixar(blob, segs, tipo);
+    startSlot(s);                          // volta a cobrir imediatamente
+    setTimeout(()=>{ saving=false; }, 800);
+  };
+  try{ rec.stop(); }catch(e){ saving=false; }
+}
+
+function baixar(blob, segs, tipo){
+  const ext = tipo.includes("mp4") ? "mp4" : "webm";
   const d=new Date();
   const stamp = [d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,"0")).join("-");
   const nome = `lance-${stamp}.${ext}`;
   const url = URL.createObjectURL(blob);
 
-  // baixa no próprio aparelho
   const a=document.createElement("a"); a.href=url; a.download=nome;
   document.body.appendChild(a); a.click(); a.remove();
 
-  // e deixa listado, caso o download não tenha ido (iOS costuma abrir em vez de baixar)
-  clips++;
+  // fica listado também: no iOS o download costuma abrir o vídeo em vez de salvar
   $("clips-h").style.display="";
   const row=document.createElement("div"); row.className="clip";
-  row.innerHTML = `<div class="t"><b>${nome}</b><small>${secs}s · ${(blob.size/1048576).toFixed(1)} MB</small></div>`;
+  row.innerHTML = `<div class="t"><b>${nome}</b><small>${segs}s · ${(blob.size/1048576).toFixed(1)} MB</small></div>`;
   const link=document.createElement("a"); link.href=url; link.download=nome; link.textContent="Baixar";
   row.appendChild(link);
   $("clips").prepend(row);
-
-  setTimeout(()=>{ saving=false; }, 1500);
 }
 
 /* ---------- tela acesa ---------- */
