@@ -103,7 +103,17 @@ function pill(el, txt, cls){ const e=$(el); e.innerHTML=txt; e.className="pill"+
 
 /* ---------- captura ---------- */
 function pickMime(){
-  const tries=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm","video/mp4"];
+  // MP4 primeiro: abre na Galeria, no iPhone e no WhatsApp. WebM só toca em
+  // navegador/VLC. Os dois servem ao buffer, porque em ambos o 1º pedaço traz o
+  // cabeçalho e os seguintes são fragmentos independentes (fMP4 / clusters WebM).
+  // Aparelho antigo costuma não ter MP4 no MediaRecorder — aí cai no WebM mesmo.
+  const tries=[
+    'video/mp4;codecs="avc1.42E01E"',   // H.264 baseline: o mais compatível
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
   for(const t of tries) if(window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
   return "";
 }
@@ -130,7 +140,8 @@ async function start(){
     rec.onerror = ()=> fail("A gravação falhou. Recarregue a página.");
     rec.start(SLICE_MS);
 
-    setDot("on"); pill("p-state","gravando","good");
+    const fmt = ((rec.mimeType||mimeType||"").includes("mp4")) ? "MP4" : "WebM";
+    setDot("on"); pill("p-state","gravando · <b>"+fmt+"</b>","good");
     $("start").style.display="none";
     $("hint").innerHTML = "Tudo certo. <b>Não bloqueie a tela nem troque de app</b> — o navegador "+
       "interrompe a gravação. Mantenha na tomada.";
