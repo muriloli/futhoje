@@ -136,6 +136,7 @@
     <span class="pill" id="p-buf">guardado <b>0s</b></span>
     <span class="pill" id="p-link">sem conexão</span>
     <span class="pill" id="p-cam">traseira</span>
+    <span class="pill" id="p-video">—</span>
   </div>
   <div class="msg" id="hint">
     Deixe esta tela aberta e o celular <b>na tomada</b>. Se bloquear a tela ou trocar
@@ -166,7 +167,24 @@ let stream=null, recOpts=null, wake=null, mime="";
 let lastReq=null, saving=false, fmtLabel="", facing="environment", trocando=false;
 const slots = [slot("A"), slot("B")];
 
+let negoc={w:0,h:0,fps:0}, fpsReal=0, quadros=0, fpsT=0, medindo=false;
+
 function slot(nome){ return {nome, rec:null, chunks:[], startedAt:0, timer:null}; }
+
+/* getSettings() diz o que foi negociado; com pouca luz o sensor entrega menos
+   que isso. Aqui contamos os quadros que chegam de fato. */
+function medirFps(){
+  const v=$("prev");
+  if(medindo || !v.requestVideoFrameCallback) return;
+  medindo = true; fpsT = performance.now();
+  const passo = ()=>{ quadros++; v.requestVideoFrameCallback(passo); };
+  v.requestVideoFrameCallback(passo);
+  setInterval(()=>{
+    const agora = performance.now();
+    if(agora > fpsT){ fpsReal = Math.round(quadros*1000/(agora-fpsT)); }
+    quadros = 0; fpsT = agora;
+  }, 2000);
+}
 function pill(el, txt, cls){ const e=$(el); e.innerHTML=txt; e.className="pill"+(cls?" "+cls:""); }
 function alerta(html){ const a=$("alert"); if(!html){ a.className="alert"; return; } a.className="alert on"; a.innerHTML=html; }
 function rec(txt, live){ $("rec-txt").textContent=txt; $("rec").className="rec"+(live?" live":" off"); }
@@ -223,6 +241,10 @@ async function abrirStream(){
   const v=$("prev"); v.srcObject = stream;
   v.classList.toggle("espelho", facing==="user");
   pill("p-cam", facing==="user" ? "frontal" : "traseira");
+  // o que o aparelho REALMENTE entregou (o pedido de 720p/30 é só um "se der")
+  const st = stream.getVideoTracks()[0].getSettings();
+  negoc = { w:st.width||0, h:st.height||0, fps:Math.round(st.frameRate||0) };
+  medirFps();
 }
 
 async function start(){
@@ -276,6 +298,11 @@ function tick(){
   const s = maisAntigo();
   const segs = s ? Math.round((Date.now()-s.startedAt)/1000) : 0;
   $("p-buf").innerHTML = "guardado <b>"+segs+"s</b>";
+  if(negoc.w){
+    const real = fpsReal ? " · <b>"+fpsReal+"fps</b> reais" : "";
+    pill("p-video", negoc.h+"p · "+negoc.fps+"fps"+real,
+         (fpsReal && fpsReal < negoc.fps*0.7) ? "bad" : "");
+  }
   if(stream && !ativos().length && !trocando){
     rec("PAUSADA", false);
     pill("p-state","pausada","bad");
