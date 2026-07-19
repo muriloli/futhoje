@@ -957,6 +957,11 @@
     <div id="poll-admin"></div>
   </div>
   <div class="field">
+    <label>Fotos dos jogadores</label>
+    <button class="btn ghost block" id="btn-recomp">Recomprimir fotos</button>
+    <p class="tip" style="margin-top:8px">Reprocessa as fotos já cadastradas para um formato bem menor, sem perda visível. Deixa o app mais leve para abrir. <span id="recomp-info"></span></p>
+  </div>
+  <div class="field">
     <div class="switch">
       <div class="access-info" id="access-info">Modo: Convidado</div>
       <button class="btn ghost" id="btn-deslogar" style="padding:10px 16px;min-height:auto">Deslogar</button>
@@ -1346,6 +1351,42 @@ document.getElementById("login-pw").addEventListener("keydown", e=>{ if(e.key===
 document.getElementById("login-guest").addEventListener("click", ()=>enterAs("guest"));
 document.getElementById("btn-deslogar").addEventListener("click", logoutToLogin);
 
+/* Recomprime as fotos já cadastradas. Trocar o codificador só vale para uploads
+   novos — as antigas continuariam em PNG, que é justamente o peso do primeiro
+   acesso. Baixa cada uma, reprocessa no mesmo canvas e regrava. */
+document.getElementById("btn-recomp").addEventListener("click", async ()=>{
+  if(!requireEdit()) return;
+  if(!temWebp()){ toast("Este navegador não gera WebP — tente pelo Chrome."); return; }
+  const alvos = DB.players.filter(p=>PHOTO_META[p.id] || LOCAL_PHOTOS[p.id]);
+  if(!alvos.length){ toast("Nenhuma foto cadastrada"); return; }
+
+  const btn=document.getElementById("btn-recomp"), info=document.getElementById("recomp-info");
+  btn.disabled=true;
+  let antes=0, depois=0, ok=0;
+  for(let i=0;i<alvos.length;i++){
+    const p=alvos[i];
+    btn.textContent = `Recomprimindo ${i+1} de ${alvos.length}…`;
+    try{
+      const src = playerPhoto(p);
+      const blob = await (await fetch(src,{cache:"no-store"})).blob();
+      if(blob.type==="image/webp"){ ok++; continue; }      // já convertida
+      const nova = await new Promise((res,rej)=>{
+        fileToAvatar(new File([blob],"f",{type:blob.type}), d=> d?res(d):rej());
+      });
+      antes  += blob.size;
+      depois += Math.round(nova.length*3/4);               // base64 -> bytes
+      LOCAL_PHOTOS[p.id]=nova; PHOTO_META[p.id]=Date.now();
+      await pushPhoto(p.id, nova);
+      ok++;
+    }catch(e){ /* pula a que falhar; as outras seguem */ }
+  }
+  btn.disabled=false; btn.textContent="Recomprimir fotos";
+  saveLocal(); renderPlayers();
+  const mb = n => (n/1048576).toFixed(1).replace(".",",");
+  info.innerHTML = antes ? `<b>${ok} foto(s)</b>: ${mb(antes)} MB → ${mb(depois)} MB.` : "Já estavam otimizadas.";
+  toast(antes ? `Fotos recomprimidas (${mb(antes)} MB → ${mb(depois)} MB)` : "As fotos já estavam otimizadas");
+});
+
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const cssvar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
@@ -1474,6 +1515,19 @@ let fSkills=defaultSkills(3), fGk=defaultGk(3);
 let fPhoto=null;         // foto atual em edição: URL (existente), data URI (nova) ou null
 let fPhotoChanged=false; // o usuário trocou/removeu a foto neste sheet?
 
+/* Nem todo navegador antigo codifica WebP no canvas; se não codificar, o
+   toDataURL devolve PNG caladamente — por isso conferimos o prefixo. */
+let _webp=null;
+function temWebp(){
+  if(_webp===null){
+    try{
+      const c=document.createElement("canvas"); c.width=c.height=1;
+      _webp = c.toDataURL("image/webp").indexOf("data:image/webp")===0;
+    }catch(e){ _webp=false; }
+  }
+  return _webp;
+}
+
 /* ---- seletor de foto: redimensiona/recorta em quadrado e comprime ---- */
 function fileToAvatar(file, cb){
   const img=new Image();
@@ -1494,8 +1548,11 @@ function fileToAvatar(file, cb){
       for(let i=3;i<d.length;i+=4){ if(d[i]<250){ hasAlpha=true; break; } }
     }catch(e){}
     try{
-      // com transparência → PNG (preserva o "sem fundo"); senão → JPEG (menor)
-      cb(hasAlpha ? c.toDataURL("image/png") : c.toDataURL("image/jpeg",0.82));
+      // WebP faz as duas coisas: guarda transparência E comprime como foto.
+      // O PNG só era usado por causa do "sem fundo", e num recorte de jogador
+      // ele passa de 120 KB — contra ~15 KB no WebP, sem diferença visível.
+      if(temWebp()) cb(c.toDataURL("image/webp",0.85));
+      else cb(hasAlpha ? c.toDataURL("image/png") : c.toDataURL("image/jpeg",0.82));
     }catch(e){ toast("Não consegui processar a imagem"); }
   };
   img.onerror=()=>{ URL.revokeObjectURL(url); toast("Não consegui ler a imagem"); };
