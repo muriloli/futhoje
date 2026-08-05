@@ -962,6 +962,11 @@
     <p class="tip" style="margin-top:8px">Reprocessa as fotos já cadastradas para um formato bem menor, sem perda visível. Deixa o app mais leve para abrir. <span id="recomp-info"></span></p>
   </div>
   <div class="field">
+    <label>Pontos da temporada</label>
+    <button class="btn ghost block" id="btn-recalc">Recalcular pontos pelo histórico</button>
+    <p class="tip" style="margin-top:8px">Refaz pontos, gols e goleiro da temporada atual somando os jogos do Histórico. Use se o ranking parecer zerado ou errado. <span id="recalc-info"></span></p>
+  </div>
+  <div class="field">
     <div class="switch">
       <div class="access-info" id="access-info">Modo: Convidado</div>
       <button class="btn ghost" id="btn-deslogar" style="padding:10px 16px;min-height:auto">Deslogar</button>
@@ -1350,6 +1355,25 @@ document.getElementById("login-enter").addEventListener("click", async ()=>{
 document.getElementById("login-pw").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("login-enter").click(); });
 document.getElementById("login-guest").addEventListener("click", ()=>enterAs("guest"));
 document.getElementById("btn-deslogar").addEventListener("click", logoutToLogin);
+
+/* Recalcula pontos/gols/goleiro da temporada pelo histórico. Garante o histórico
+   carregado antes (senão recomputaria sobre um MATCHES vazio e zeraria tudo). */
+document.getElementById("btn-recalc").addEventListener("click", ()=>{
+  if(!requireEdit()) return;
+  askConfirm("Recalcular pela histórico?",
+    "Refaz pontos, gols e goleiro da temporada atual somando os jogos do Histórico. Ajustes manuais que não vieram de partidas serão sobrescritos.",
+    async ()=>{
+      const info=document.getElementById("recalc-info");
+      await pullMatches();
+      const cur=curSeasonIndex();
+      const naTemp=MATCHES.filter(m=>matchSeason(m)===cur).length;
+      if(!naTemp){ info.textContent="Nenhum jogo desta temporada no histórico."; toast("Nada para recalcular"); return; }
+      const usados=recomputeSeasonStats();
+      save(); renderPlayers(); renderLeaders(); renderStats();
+      info.innerHTML = `Refeito com <b>${naTemp} jogo(s)</b> da temporada.`;
+      toast(`Pontos recalculados (${naTemp} jogo${naTemp>1?"s":""})`);
+    });
+});
 
 /* Recomprime as fotos já cadastradas. Trocar o codificador só vale para uploads
    novos — as antigas continuariam em PNG, que é justamente o peso do primeiro
@@ -2218,20 +2242,49 @@ function checkSeasonRollover(){
   if(DB.season===undefined){ DB.season=cur; return; }   // dados existentes → temporada atual
   if(cur>DB.season){
     if(!DB.seasons) DB.seasons={};
-    const standings=DB.players.filter(p=>(p.gols||0)>0)
-      .map(p=>({id:p.id,nome:p.nome,gols:p.gols,posicoes:(p.posicoes||["Ala"]).slice()}))
-      .sort((a,b)=>b.gols-a.gols||a.nome.localeCompare(b.nome));
-    const gkStandings=DB.players.filter(p=>(p.gkGames||0)>0)
-      .map(p=>({id:p.id,nome:p.nome,gkPoints:p.gkPoints||0,gkGames:p.gkGames||0,posicoes:(p.posicoes||["Ala"]).slice()}))
-      .sort((a,b)=>(b.gkPoints||0)-(a.gkPoints||0)||a.nome.localeCompare(b.nome));
-    const ptsStandings=DB.players.filter(p=>(p.games||0)>0)
-      .map(p=>({id:p.id,nome:p.nome,points:p.points||0,games:p.games||0,posicoes:(p.posicoes||["Ala"]).slice()}))
-      .sort((a,b)=>(b.points||0)-(a.points||0)||a.nome.localeCompare(b.nome));
-    DB.seasons[DB.season]={index:DB.season, standings, gkStandings, ptsStandings, endedAt:new Date().toISOString()};
+    // Guard: só arquiva se ainda não houver arquivo dessa temporada. Sem isto, um
+    // estado defasado sincronizado (DB.season antigo) reencadeava o rollover e
+    // SOBRESCREVIA o arquivo bom com dados velhos, além de zerar de novo os pontos.
+    if(DB.seasons[DB.season]===undefined){
+      const standings=DB.players.filter(p=>(p.gols||0)>0)
+        .map(p=>({id:p.id,nome:p.nome,gols:p.gols,posicoes:(p.posicoes||["Ala"]).slice()}))
+        .sort((a,b)=>b.gols-a.gols||a.nome.localeCompare(b.nome));
+      const gkStandings=DB.players.filter(p=>(p.gkGames||0)>0)
+        .map(p=>({id:p.id,nome:p.nome,gkPoints:p.gkPoints||0,gkGames:p.gkGames||0,posicoes:(p.posicoes||["Ala"]).slice()}))
+        .sort((a,b)=>(b.gkPoints||0)-(a.gkPoints||0)||a.nome.localeCompare(b.nome));
+      const ptsStandings=DB.players.filter(p=>(p.games||0)>0)
+        .map(p=>({id:p.id,nome:p.nome,points:p.points||0,games:p.games||0,posicoes:(p.posicoes||["Ala"]).slice()}))
+        .sort((a,b)=>(b.points||0)-(a.points||0)||a.nome.localeCompare(b.nome));
+      DB.seasons[DB.season]={index:DB.season, standings, gkStandings, ptsStandings, endedAt:new Date().toISOString()};
+    }
     DB.players.forEach(p=>{ p.gols=0; p.gkPoints=0; p.gkGames=0; p.benchCount=0; p.points=0; p.games=0; });
     DB.season=cur;
     save();
   }
+}
+
+/* Reconstrói pontos/gols/goleiro da temporada ATUAL a partir do histórico.
+   O histórico é a fonte imutável (cada jogo guarda pts[] e gks[]); os totais no
+   jogador são só um cache. Se algo zerar/dessincronizar (como no rollover com
+   estado defasado), isto restaura sem perder nada. Idempotente. */
+function recomputeSeasonStats(){
+  const cur=curSeasonIndex();
+  DB.players.forEach(p=>{ p.points=0; p.games=0; p.gols=0; p.gkPoints=0; p.gkGames=0; });
+  let usados=0;
+  MATCHES.filter(m=>matchSeason(m)===cur).forEach(m=>{
+    if(Array.isArray(m.pts) && m.pts.length){
+      usados++;
+      m.pts.forEach(r=>{ const p=byId(r.id); if(p){
+        p.points=(p.points||0)+(r.points||0); p.games=(p.games||0)+1; p.gols=(p.gols||0)+(r.goals||0);
+      }});
+    } else {   // jogo antigo sem pts[]: recupera ao menos os gols pelos autores
+      (m.scorers||[]).forEach(s=>{ const p=DB.players.find(x=>x.nome===s.name); if(p) p.gols=(p.gols||0)+(s.goals||0); });
+    }
+    (m.gks||[]).forEach(g=>{ const p=g.id?byId(g.id):DB.players.find(x=>x.nome===g.name); if(p){
+      p.gkPoints=Math.round(((p.gkPoints||0)+(g.points||0))*100)/100; p.gkGames=(p.gkGames||0)+1;
+    }});
+  });
+  return usados;
 }
 
 /* ===================== LÍDERES ===================== */
