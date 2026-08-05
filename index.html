@@ -2521,11 +2521,21 @@ let numTeams = DB.numTeams||2;
 document.getElementById("numteams").addEventListener("click", e=>{
   if(!requireEdit())return;
   const b=e.target.closest("button"); if(!b) return;
-  numTeams=+b.dataset.n; DB.numTeams=numTeams; save();
+  numTeams=+b.dataset.n; DB.numTeams=numTeams;
   document.querySelectorAll("#numteams button").forEach(x=>{
     const on=x===b; x.classList.toggle("on",on);
     x.style.background=on?cssvar("--accent"):""; x.style.borderColor=on?cssvar("--accent"):"";
   });
+  // Já tem times sorteados e o usuário AUMENTOU a quantidade → monta o(s) time(s)
+  // novo(s) com o pessoal do banco, sem re-sortear os que já estão em quadra.
+  if(DB.lineup && numTeams>DB.lineup.teams.length){
+    const entraram=growLineupTo(numTeams);
+    syncTimes(); save();
+    renderLineup(); paintMatchup(); updateTeamLabels(); renderScorers();
+    toast(entraram ? `Novo time montado com ${entraram} do banco` : "Novo time criado — ative jogadores para preencher");
+  } else {
+    save();   // sem lineup ainda, ou diminuindo: só guarda; o Sortear monta do zero
+  }
 });
 document.getElementById("btn-draw").addEventListener("click", ()=>{ if(!requireEdit())return; drawTeams(); });
 
@@ -2600,6 +2610,50 @@ function lineupTeamPower(t){
   return s+r;
 }
 
+/* Aumenta o nº de times SEM re-sortear: os titulares dos times já sorteados
+   ficam intactos; o(s) time(s) novo(s) sai(em) do banco (quem você foi ativando).
+   Retorna quantos jogadores entraram como titular nos times novos. */
+function growLineupTo(n){
+  const L=DB.lineup; if(!L) return 0;
+  const old=L.teams.length;
+  if(n<=old) return 0;
+  sanitizeLineup(); ensureAllAssigned();     // recém-ativados já entram no banco
+  // recolhe TODAS as reservas num pool comum (os titulares não são tocados)
+  let pool=[];
+  L.teams.forEach(t=>{ (t.reserves||[]).forEach(pid=>{ if(byId(pid)) pool.push(pid); }); t.reserves=[]; });
+  pool.sort((a,b)=>byId(b).nivel-byId(a).nivel);   // mais fortes primeiro, p/ equilibrar
+  while(L.teams.length<n) L.teams.push({slots:SEQ.map(pos=>({pos,pid:null})), reserves:[]});
+  L.numTeams=n;
+  if(!L.names) L.names=[];
+  for(let i=0;i<n;i++) if(!L.names[i]) L.names[i]="Time "+LETTERS[i];
+  const novos=[]; for(let i=old;i<n;i++) novos.push(i);
+  const somaNovo=i=>L.teams[i].slots.reduce((a,s)=>a+(s.pid&&byId(s.pid)?byId(s.pid).nivel:0),0);
+  let entraram=0;
+  // preenche por posição, do jogador mais forte para o time novo mais fraco
+  ["Goleiro","Fixo","Ala","Pivô"].forEach(pos=>{
+    let mudou=true;
+    while(mudou){
+      mudou=false;
+      const alvos=novos.filter(i=>L.teams[i].slots.some(s=>s.pos===pos&&!s.pid))
+                       .sort((a,b)=>somaNovo(a)-somaNovo(b));
+      for(const i of alvos){
+        const ci=pool.findIndex(pid=>byId(pid).posicoes.includes(pos));
+        if(ci<0) break;
+        L.teams[i].slots.find(s=>s.pos===pos&&!s.pid).pid=pool.splice(ci,1)[0];
+        entraram++; mudou=true;
+      }
+    }
+  });
+  // vagas que sobraram nos times novos: completa com quem tiver (posição fora)
+  for(const i of novos) for(const s of L.teams[i].slots) if(!s.pid && pool.length){ s.pid=pool.shift(); entraram++; }
+  // resto vira reserva dos times NOVOS (a rotação fica neles)
+  pool.forEach(pid=>{
+    const i=novos.slice().sort((a,b)=>L.teams[a].reserves.length-L.teams[b].reserves.length)[0];
+    L.teams[i].reserves.push(pid);
+  });
+  return entraram;
+}
+
 /* ---- Próxima partida: rotação DENTRO de cada time (banco entra, quem
    jogou mais seguidas sai). Não mescla jogadores entre os times. ---- */
 function nextMatch(){
@@ -2667,13 +2721,23 @@ function sanitizeLineup(){
 }
 function ensureAllAssigned(){
   if(!DB.lineup) return;
+  const T=DB.lineup.teams;
   const placed=new Set();
-  DB.lineup.teams.forEach(t=>{ t.slots.forEach(s=>{if(s.pid)placed.add(s.pid);}); (t.reserves||[]).forEach(pid=>placed.add(pid)); });
+  T.forEach(t=>{ t.slots.forEach(s=>{if(s.pid)placed.add(s.pid);}); (t.reserves||[]).forEach(pid=>placed.add(pid)); });
   activePlayers().filter(p=>!placed.has(p.id)).sort((a,b)=>b.nivel-a.nivel).forEach(p=>{
+    // 1) vaga TITULAR aberta da posição do jogador (time mais vazio primeiro) —
+    //    é o que faz o time novo ir se completando conforme você ativa gente
+    let cands=T.map((t,i)=>({i, s:t.slots.find(s=>!s.pid && p.posicoes.includes(s.pos))})).filter(x=>x.s);
+    // 2) senão, qualquer vaga titular aberta (completa time incompleto)
+    if(!cands.length) cands=T.map((t,i)=>({i, s:t.slots.find(s=>!s.pid)})).filter(x=>x.s);
+    if(cands.length){
+      cands.sort((a,b)=>teamFilled(T[a.i])-teamFilled(T[b.i]));
+      cands[0].s.pid=p.id; return;
+    }
+    // 3) todos os times cheios → banco do time com menos gente
     let best=0,min=Infinity;
-    DB.lineup.teams.forEach((t,i)=>{ const c=t.slots.filter(s=>s.pid).length+(t.reserves||[]).length; if(c<min){min=c;best=i;} });
-    if(!DB.lineup.teams[best].reserves) DB.lineup.teams[best].reserves=[];
-    DB.lineup.teams[best].reserves.push(p.id);
+    T.forEach((t,i)=>{ const c=t.slots.filter(s=>s.pid).length+(t.reserves||[]).length; if(c<min){min=c;best=i;} });
+    (T[best].reserves=T[best].reserves||[]).push(p.id);
   });
 }
 
