@@ -2071,7 +2071,11 @@ function teamRoster(t){
 function buildMatch(){
   const mu=currentMatchup();
   const teams = mu.map(i=>({name:DB.lineup.names[i], letter:LETTERS[i], score:teamScore(i), squad:teamRoster(DB.lineup.teams[i])}));
-  const scorers = DB.players.filter(p=>(p.matchGoals||0)>0)
+  // Só conta como artilheiro quem está num dos dois times EM QUADRA. Sem esse
+  // filtro, num jogo de 3 times (ou com matchGoals nao-zerado de um jogo antigo)
+  // jogadores de fora vazavam pra lista e o total de gols passava do placar.
+  const emQuadra = new Set(mu.map(i=>LETTERS[i]));
+  const scorers = DB.players.filter(p=>(p.matchGoals||0)>0 && emQuadra.has(p.time))
     .map(p=>({name:p.nome, goals:p.matchGoals, team:p.time}))
     .sort((a,b)=>b.goals-a.goals || a.name.localeCompare(b.name));
   return { id:uid(), date:new Date().toISOString(), numTeams:DB.lineup.numTeams, season:curSeasonIndex(), teams, scorers };
